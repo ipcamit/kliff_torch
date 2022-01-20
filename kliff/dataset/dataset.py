@@ -1,4 +1,5 @@
 import os
+import sys
 from pathlib import Path
 from typing import Dict, List, Optional, Union
 
@@ -9,6 +10,16 @@ from loguru import logger
 
 # map from file_format to file extension
 SUPPORTED_FORMAT = {"xyz": ".xyz"}
+
+try:
+    from colabfit.tools.database import MongoDatabase
+except ModuleNotFoundError:
+    logger.info("colabfit module not found.")
+
+
+def Z_to_Symbol(Z: int) -> str:
+    if Z == 14:
+        return "Si"
 
 
 class Configuration:
@@ -48,6 +59,10 @@ class Configuration:
         stress: Optional[List[float]] = None,
         weight: float = 1.0,
         identifier: Optional[Union[str, Path]] = None,
+        is_colabfit_dataset: Optional[bool] = None,
+        database_client: Optional[MongoDatabase] = None,
+        property_id: Optional[str] = None,
+        configuration_id: Optional[str] = None,
     ):
         self._cell = cell
         self._species = species
@@ -59,6 +74,10 @@ class Configuration:
         self._weight = weight
         self._identifier = identifier
         self._path = None
+        self._is_colabfit_dataset = is_colabfit_dataset
+        self._colabfit_dataset = database_client
+        self.property_id = property_id
+        self.configuration_id = configuration_id
 
     # TODO enable config weight read in from file
     @classmethod
@@ -91,6 +110,68 @@ class Configuration:
             cell, species, coords, PBC, energy, forces, stress, identifier=str(filename)
         )
         self._path = to_path(filename)
+
+        return self
+
+    @classmethod
+    def from_colabfit(
+        cls, database_client: MongoDatabase, configuration_ids: str, property_ids: str
+    ):
+        """
+        Read configuration from colabfit database .
+
+        Args:
+            database_name: Name of the that stores the configuration.
+            kim_property: kim property for forces and energy (e.g. `xyz`).
+        """
+        #
+        # TODO forces and energy properties shall only be fetched when needed, else keep value none.
+        # this should intended use for pytorch dataloader
+
+        configuration_query = database_client.get_data(
+            "configurations",
+            fields=["cell", "pbc", "atomic_numbers", "positions"],
+            query={"_id": configuration_ids},
+        )
+        property_query = database_client.get_data(
+            "properties",
+            fields=["energy-forces.energy", "energy-forces.forces"],
+            query={"_id": property_ids},
+        )
+
+        cell = configuration_query["cell"][0]
+        species = list(map(Z_to_Symbol, configuration_query["atomic_numbers"][0]))
+        PBC = [bool(i) for i in configuration_query["pbc"][0]]
+        coords = configuration_query["positions"][0]
+        stress = None
+
+        PBC = [bool(i) for i in PBC]
+
+        energy = (
+            property_query["energy-forces.energy"][0][0]
+            if property_query["energy-forces.energy"]
+            else None
+        )
+        forces = (
+            property_query["energy-forces.forces"][0]
+            if property_query["energy-forces.forces"]
+            else None
+        )
+        # stress = [float(i) for i in stress] if stress is not None else None
+
+        self = cls(
+            cell,
+            species,
+            coords,
+            PBC,
+            energy,
+            forces,
+            stress,
+            is_colabfit_dataset=True,
+            database_client=database_client,
+            configuration_id=configuration_ids,
+            property_id=property_ids,
+        )
 
         return self
 
@@ -297,11 +378,41 @@ class Dataset:
         file_format: Format of the file that stores the configuration, e.g. `xyz`.
     """
 
-    def __init__(self, path: Optional[Path] = None, file_format="xyz"):
+    def __init__(
+        self,
+        path: Optional[Path] = None,
+        file_format="xyz",
+        colabfit_database=None,
+        kim_property=None,
+        colabfit_dataset=None,
+    ):
         self.file_format = file_format
 
         if path is not None:
             self.configs = self._read(path, file_format)
+
+        elif colabfit_database is not None:
+            if colabfit_dataset is not None:
+                # open link to the mongo
+                if "colabfit" in sys.modules:
+                    self.mongo_client = MongoDatabase(colabfit_database)
+                    self.colabfit_dataset = colabfit_dataset
+                    self.kim_property = kim_property
+                    self.configs = self._read_colabfit(
+                        self.mongo_client, colabfit_dataset, kim_property
+                    )
+                else:
+                    logger.error(f"colabfit tools not installed.")
+                    raise ModuleNotFoundError(
+                        f"You are trying to read configuration from colabfit dataset"
+                        " but colabfit-tools module is not installed."
+                        " Please do `pip install colabfit` first"
+                    )
+            else:
+                logger.error(
+                    f"colabfit database provided ({colabfit_database}) but not dataset."
+                )
+                raise DatasetError(f"No dataset name given.")
 
         else:
             self.configs = []
@@ -368,6 +479,39 @@ class Dataset:
             )
 
         logger.info(f"{len(configs)} configurations read from {path}")
+
+        return configs
+
+    @staticmethod
+    def _read_colabfit(client: MongoDatabase, dataset_name: str, kim_property: str):
+        """
+        Read atomic configurations from path.
+        """
+
+        # get configuration and property ID and send it to load configuration
+        dataset_id_query = client.get_data(
+            "datasets", fields=["_id"], query={"name": dataset_name}
+        )
+        if not dataset_id_query:
+            logger.error(f"{dataset_name} is either empty or does not exist")
+            raise DatasetError(f"{dataset_name} is either empty or does not exist")
+
+        colabfit_dataset = client.get_dataset(dataset_id_query[0][0])
+        configuration_ids, property_ids = (
+            colabfit_dataset["dataset"].configuration_set_ids[0],
+            colabfit_dataset["dataset"].property_ids,
+        )
+        configs = [
+            Configuration.from_colabfit(client, ids[0], ids[1])
+            for ids in zip(configuration_ids, property_ids)
+        ]
+
+        if len(configs) <= 0:
+            raise DatasetError(
+                f"No dataset file with in {dataset_name} dataset."
+            )
+
+        logger.info(f"{len(configs)} configurations read from {dataset_name}")
 
         return configs
 

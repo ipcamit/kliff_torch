@@ -48,7 +48,7 @@ from kliff.utils import download_dataset
 # We first create a KIM model for the SW potential, and print out all the available
 # parameters that can be optimized (we call this ``model parameters``).
 
-model = KIMModel(model_name="SW_StillingerWeber_1985_Si__MO_405512056662_006")
+model = KIMModel(model_name="SW_StillingerWeber_1985_Si__MO_405512056662_005")
 model.echo_model_params()
 
 

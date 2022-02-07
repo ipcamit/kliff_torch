@@ -2,6 +2,7 @@ import os
 import sys
 from pathlib import Path
 from typing import Dict, List, Optional, Union
+from torch.utils.data import Dataset as TorchDataset
 
 import colabfit.tools.configuration
 import numpy as np
@@ -62,7 +63,7 @@ class AutoloaderConfiguration:
         database_client: Optional[MongoDatabase] = None,
         property_id: Optional[str] = None,
         configuration_id: Optional[str] = None,
-        property_fields: List[str] = None,
+        aux_property_fields: List[str] = None,
     ):
         self._cell = cell
         self._species = species
@@ -78,10 +79,10 @@ class AutoloaderConfiguration:
         self.colabfit_dataclient = database_client
         self.property_id = property_id
         self.configuration_id = configuration_id
-        self.property_fields = property_fields
+        self.aux_property_fields = aux_property_fields
         self._is_initialized = False
 
-        if self.property_fields:
+        if self.aux_property_fields:
             self._set_aux_properties()
 
     # TODO enable config weight read in from file
@@ -124,7 +125,7 @@ class AutoloaderConfiguration:
         database_client: MongoDatabase,
         configuration_id: str,
         property_ids: str,
-        property_fields: List[str] = None,
+        aux_property_fields: List[str] = None,
     ):
         """
         Read configuration from colabfit database .
@@ -136,8 +137,8 @@ class AutoloaderConfiguration:
             "configuration" in colabfit-tools.
             property_ids: ID of the property instance to be associated with current configuration.
             Usually properties would be trained against. Each associated property "field" will be
-            matched against provided list of property_fields.
-            property_fields: associated colabfit-tools property fields to be associated.
+            matched against provided list of aux_property_fields.
+            aux_property_fields: associated colabfit-tools property fields to be associated.
              Default is energy, forces, and stress but more can be added. Provided property field will be
              available under the "property" field.
         """
@@ -150,7 +151,7 @@ class AutoloaderConfiguration:
             database_client=database_client,
             configuration_id=configuration_id,
             property_id=property_ids,
-            property_fields=property_fields,
+            aux_property_fields=aux_property_fields,
         )
         return self
 
@@ -279,6 +280,7 @@ class AutoloaderConfiguration:
         \sigma_{xy}]`.
 
         """
+        # TODO avoid reloading the property if it is explicitly set to None
         if self._stress is None:
             # check if it colabfit-datasbase and hence needs initialization
             if self.is_colabfit_dataset:
@@ -423,9 +425,9 @@ class AutoloaderConfiguration:
     def _set_aux_properties(self):
         """
         Setup any extra property to be read from property definitions, specially in case of colabfit-tools.
-        This routine shall set attributes of the class based on `property_fields`. The fields will be accessed
+        This routine shall set attributes of the class based on `aux_property_fields`. The fields will be accessed
         by first finding the property type using `type` field in `client.aggregate_property_info`, then suffixing
-        the property_fields for field query `<type>.<property_fields>`. By default three properties are defined,
+        the aux_property_fields for field query `<type>.<aux_property_fields>`. By default three properties are defined,
         Energy, forces and stress. This subroutine adds the attributes to the class. As these properties
         will be accessed outside directly and will be determined at runtime, they will be public member.
         Also as of now aux attributes get initialized with the initialization of the Configuration itself.
@@ -433,12 +435,14 @@ class AutoloaderConfiguration:
         Returns: None
 
         """
-        for new_property in self.property_fields:
+        for new_property in self.aux_property_fields:
             property_value = self.get_colabfit_property(new_property)
             if property_value is not None:
                 self.__setattr__(new_property, property_value)
             else:
-                raise ConfigurationError(f"Configuration does not contain {new_property}.")
+                raise ConfigurationError(
+                    f"Configuration does not contain {new_property}."
+                )
 
     def get_colabfit_property(self, property_name: str):
         """
@@ -450,10 +454,14 @@ class AutoloaderConfiguration:
 
         """
         # print(f"loading {property_name}")
-        property_info = self.colabfit_dataclient.aggregate_property_info(self.property_id)
-        property_value = self.colabfit_dataclient.get_data("properties",
-                                                           fields=[f"{property_info['types'][0]}.{property_name}"],
-                                                           query={"_id": self.property_id})
+        property_info = self.colabfit_dataclient.aggregate_property_info(
+            self.property_id
+        )
+        property_value = self.colabfit_dataclient.get_data(
+            "properties",
+            fields=[f"{property_info['types'][0]}.{property_name}"],
+            query={"_id": self.property_id},
+        )
         if property_value:
             # Temporary workaround against https://github.com/colabfit/colabfit-tools/issues/9
             try:
@@ -463,7 +471,6 @@ class AutoloaderConfiguration:
             return property_value
         else:
             return None
-
 
     # TODO set up `getattribute` member to raise ConfigurationError for Nonetype properties
     # Currently it was getting in infinite loop
@@ -496,7 +503,7 @@ class AutoloaderConfiguration:
     #         raise AttributeError(f"Configuration does not contain property: {name}")
 
 
-class DatasetAutoloader:
+class DatasetAutoloader(TorchDataset):
     """
     A dataset of multiple configurations (:class:`~kliff.dataset.Configuration`).
 
@@ -545,7 +552,9 @@ class DatasetAutoloader:
                 raise DatasetError(f"No dataset name given.")
 
         else:
-            self.configs = []
+            self.configs: List[AutoloaderConfiguration] = []
+
+        self.train_on = None
 
     def add_configs(self, path: Path):
         """
@@ -613,7 +622,9 @@ class DatasetAutoloader:
         return configs
 
     @staticmethod
-    def _read_colabfit(client: MongoDatabase, dataset_name: str, kim_property: str):
+    def _read_colabfit(
+        client: MongoDatabase, dataset_name: str, aux_property_fields: str = None
+    ):
         """
         Read atomic configurations from path.
         """
@@ -632,7 +643,9 @@ class DatasetAutoloader:
             colabfit_dataset["dataset"].property_ids,
         )
         configs = [
-            AutoloaderConfiguration.from_colabfit(client, ids[0], ids[1])
+            AutoloaderConfiguration.from_colabfit(
+                client, ids[0], ids[1], aux_property_fields=aux_property_fields
+            )
             for ids in zip(configuration_ids, property_ids)
         ]
 
@@ -642,6 +655,36 @@ class DatasetAutoloader:
         logger.info(f"{len(configs)} configurations read from {dataset_name}")
 
         return configs
+
+    def __len__(self) -> int:
+        return len(self.configs)
+
+    def __getitem__(self, idx):
+        print(self.train_on)
+        if self.train_on:
+            # If train_on flag is set then only fetch that property
+            query_dict = {"configuration": self.configs[idx].coords}
+            if isinstance(self.train_on, list):
+                for train_on_property in self.train_on:
+                    query_dict[train_on_property] = self.configs[idx].__getattribute__(
+                        train_on_property
+                    )
+            elif isinstance(self.train_on, str):
+                query_dict[self.train_on] = self.configs[idx].__getattribute__(
+                    self.train_on
+                )
+            else:
+                raise ValueError(
+                    f"Expected type `str` or `list` of properties to train on, got {type(self.train_on)}"
+                )
+            return query_dict
+        else:
+            # Else return energy and forces
+            return {
+                "configuration": self.configs[idx].coords,
+                "energy": self.configs[idx].energy,
+                "forces": self.configs[idx].forces,
+            }
 
 
 class ConfigurationError(Exception):
@@ -654,3 +697,9 @@ class DatasetError(Exception):
     def __init__(self, msg):
         super(DatasetError, self).__init__(msg)
         self.msg = msg
+
+
+# TODO: Test for arbitrary properties using aux_property_fields
+# TODO: Stress handling
+# TODO: Automate property lookup from kim-property
+# TODO: Documentation and cleanup

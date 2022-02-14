@@ -23,8 +23,8 @@ To carry out optimization, first create a loss object:
 
 ``calculator`` (discussed in :ref:`doc.calculators`) provides predictions
 calculated using a potential and the corresponding reference data via
-:meth:`~kliff.calculator.Calculator.get_prediction()` and
-:meth:`~kliff.calculator.Calculator.get_reference()`, respectively, which the
+:meth:`~kliff.calculator.CalculatorNew.get_prediction()` and
+:meth:`~kliff.calculator.CalculatorNew.get_reference()`, respectively, which the
 optimizer can be used to construct the objective function.
 
 ``nprocs`` informs KLIFF the number of cores that KLIFF can use to parallelize

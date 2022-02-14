@@ -4,6 +4,7 @@ from typing import Any, Callable, Dict, List, Optional, Sequence
 
 import numpy as np
 from kliff.dataset.dataset import Configuration
+from kliff.dataset.dataset_autoloader import AutoloaderConfiguration
 from kliff.error import report_import_error
 from kliff.log import get_log_level
 from kliff.models.model import ComputeArguments, Model
@@ -41,7 +42,7 @@ class KIMComputeArguments(ComputeArguments):
     def __init__(
         self,
         kim_ca,
-        config: Configuration,
+        config: AutoloaderConfiguration,
         supported_species: Dict[str, int],
         influence_distance: float,
         compute_energy: bool = True,
@@ -691,6 +692,28 @@ class KIMModel(Model):
         self.kim_model.write_parameterized_model(path, model_name)
 
         logger.info(f"KLIFF trained model write to `{path}`")
+
+    def __call__(
+        self,
+        config: AutoloaderConfiguration,
+        compute_energy: bool = True,
+        compute_forces: bool = True,
+        compute_stress: bool = False,
+    ) -> Any:
+        supported_species = self.get_supported_species()
+        influence_dist = self.get_influence_distance()
+        kim_ca = self.create_a_kim_compute_argument()
+        kim_ca_instance = KIMComputeArguments(
+            kim_ca=kim_ca,
+            config=config,
+            supported_species=supported_species,
+            influence_distance=influence_dist,
+            compute_energy=compute_energy,
+            compute_forces=compute_forces,
+            compute_stress=compute_stress,
+        )
+        kim_ca_instance.compute(self.kim_model)
+        return kim_ca_instance.results
 
 
 class KIMModelError(Exception):

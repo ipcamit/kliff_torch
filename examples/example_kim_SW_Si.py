@@ -121,10 +121,10 @@ configs = tset.get_configs()
 # system of atoms.
 #
 #
-# Calculator
+# CalculatorNew
 # ----------
 #
-# :class:`~kliff.calculator.Calculator` is the central agent that exchanges information
+# :class:`~kliff.calculator.CalculatorNew` is the central agent that exchanges information
 # and orchestrate the operation of the fitting process. It calls the model to compute the
 # energy and forces and provide this information to the `Loss function`_ (discussed below)
 # to compute the loss. It also grabs the parameters from the optimizer and update the

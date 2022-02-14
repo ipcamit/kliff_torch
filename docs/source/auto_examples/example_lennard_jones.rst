@@ -97,7 +97,7 @@ Compare this with :ref:`tut_kim_sw`.
 
 .. code-block:: default
 
-    from kliff.calculators import Calculator
+    from kliff.calculators import CalculatorNew
     from kliff.dataset import Dataset
     from kliff.loss import Loss
     from kliff.models import LennardJones
@@ -116,7 +116,7 @@ Compare this with :ref:`tut_kim_sw`.
     model.set_opt_params(sigma=[["default"]], epsilon=[["default"]])
     model.echo_opt_params()
 
-    calc = Calculator(model)
+    calc = CalculatorNew(model)
     calc.create(configs)
 
     # loss

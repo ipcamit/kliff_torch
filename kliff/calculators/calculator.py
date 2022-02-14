@@ -10,7 +10,7 @@ from loguru import logger
 
 class Calculator:
     """
-    Calculator to compute properties (e.g. energy and forces) using a potential model for
+    CalculatorNew to compute properties (e.g. energy and forces) using a potential model for
     each configuration in the dataset.
 
     The properties, together with the corresponding reference data stored in the
@@ -299,7 +299,7 @@ class _WrapperCalculator(object):
         Parameters
         ----------
 
-        calculators: instance of Calculator
+        calculators: instance of CalculatorNew
         """
         self.calculators = calculators
         self._start_end = self._set_start_end()

@@ -67,7 +67,7 @@ def energy_forces_residual(
 
     Note:
         The length of `prediction` and `reference` (call it `S`) are the same, and it
-        depends on `use_energy` and `use_forces` in Calculator. Assume the
+        depends on `use_energy` and `use_forces` in CalculatorNew. Assume the
         configuration contains of `N` atoms.
 
         1. If `use_energy == True` and `use_forces == False`, then `S = 1`.
@@ -153,7 +153,7 @@ class Loss:
     classes directly.
 
     Args:
-        calculator: Calculator to compute prediction from atomic configuration using
+        calculator: CalculatorNew to compute prediction from atomic configuration using
             a potential model.
         nprocs: Number of processes to use..
         residual_fn: function to compute residual, e.g. :meth:`energy_forces_residual`,
@@ -193,7 +193,7 @@ class LossPhysicsMotivatedModel:
     Loss function class to optimize the physics-based potential parameters.
 
     Args:
-        calculator: Calculator to compute prediction from atomic configuration using
+        calculator: CalculatorNew to compute prediction from atomic configuration using
             a potential model.
         nprocs: Number of processes to use..
         residual_fn: function to compute residual, e.g. :meth:`energy_forces_residual`,
@@ -592,7 +592,7 @@ class LossNeuralNetworkModel(object):
     classes directly.
 
     Args:
-        calculator: Calculator to compute prediction from atomic configuration using
+        calculator: CalculatorNew to compute prediction from atomic configuration using
             a potential model.
         nprocs: Number of processes to use..
         residual_fn: function to compute residual, e.g. :meth:`energy_forces_residual`,

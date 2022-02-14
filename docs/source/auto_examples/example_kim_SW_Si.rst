@@ -58,7 +58,7 @@ Let's first import the modules that will be used in this example.
 .. code-block:: default
 
 
-    from kliff.calculators import Calculator
+    from kliff.calculators import CalculatorNew
     from kliff.dataset import Dataset
     from kliff.loss import Loss
     from kliff.models import KIMModel
@@ -274,10 +274,10 @@ hosting the species, coordinates, energy, forces, and other related information 
 system of atoms.
 
 
-Calculator
+CalculatorNew
 ----------
 
-:class:`~kliff.calculator.Calculator` is the central agent that exchanges information
+:class:`~kliff.calculator.CalculatorNew` is the central agent that exchanges information
 and orchestrate the operation of the fitting process. It calls the model to compute the
 energy and forces and provide this information to the `Loss function`_ (discussed below)
 to compute the loss. It also grabs the parameters from the optimizer and update the
@@ -290,7 +290,7 @@ by:
 .. code-block:: default
 
 
-    calc = Calculator(model)
+    calc = CalculatorNew(model)
     _ = calc.create(configs)
 
 

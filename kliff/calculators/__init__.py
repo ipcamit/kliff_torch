@@ -1,8 +1,9 @@
 from kliff.utils import torch_available
 
 from .calculator import Calculator
+from .calculator_new import CalculatorNew
 
-__all__ = ["Calculator"]
+__all__ = ["Calculator","CalculatorNew"]
 
 
 if torch_available():

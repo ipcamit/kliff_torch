@@ -24,11 +24,11 @@ A calculator for the physics-motivated potential can be created by:
 
 .. code-block:: python
 
-    from kliff.calculators import Calculator
+    from kliff.calculators import CalculatorNew
 
     model = ...  # create a model
     configs = ...  # get a list of configurations
-    calc = Calculator(model)
+    calc = CalculatorNew(model)
     calc.create(configs, use_energy=True, use_forces=True, use_stress=False)
 
 It creates a calculator for a ``model`` (discussed in :ref:`doc.models`), and
@@ -44,22 +44,22 @@ If the potential is to be trained on `energy` only, it would be better to set
 Other methods of the calculator include:
 
 - `Initialization`:
-  :meth:`~kliff.calculators.Calculator.get_compute_arguments`.
+  :meth:`~kliff.calculators.CalculatorNew.get_compute_arguments`.
 - `Property calculation using a model`:
-  :meth:`~kliff.calculators.Calculator.compute`,
-  :meth:`~kliff.calculators.Calculator.get_compute_arguments`,
-  :meth:`~kliff.calculators.Calculator.compute`,
-  :meth:`~kliff.calculators.Calculator.get_energy`,
-  :meth:`~kliff.calculators.Calculator.get_forces`,
-  :meth:`~kliff.calculators.Calculator.get_stress`,
-  :meth:`~kliff.calculators.Calculator.get_prediction`,
-  :meth:`~kliff.calculators.Calculator.get_reference`.
+  :meth:`~kliff.calculators.CalculatorNew.compute`,
+  :meth:`~kliff.calculators.CalculatorNew.get_compute_arguments`,
+  :meth:`~kliff.calculators.CalculatorNew.compute`,
+  :meth:`~kliff.calculators.CalculatorNew.get_energy`,
+  :meth:`~kliff.calculators.CalculatorNew.get_forces`,
+  :meth:`~kliff.calculators.CalculatorNew.get_stress`,
+  :meth:`~kliff.calculators.CalculatorNew.get_prediction`,
+  :meth:`~kliff.calculators.CalculatorNew.get_reference`.
 - `Optimizing parameters`:
-  :meth:`~kliff.calculators.Calculator.get_opt_params`,
-  :meth:`~kliff.calculators.Calculator.get_opt_params_bounds`,
-  :meth:`~kliff.calculators.Calculator.update_model_params`.
+  :meth:`~kliff.calculators.CalculatorNew.get_opt_params`,
+  :meth:`~kliff.calculators.CalculatorNew.get_opt_params_bounds`,
+  :meth:`~kliff.calculators.CalculatorNew.update_model_params`.
 
 .. seealso::
-    See :class:`kliff.calculators.Calculator` for a complete list of the member
+    See :class:`kliff.calculators.CalculatorNew` for a complete list of the member
     functions and
     their docs.

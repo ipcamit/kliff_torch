@@ -660,31 +660,31 @@ class DatasetAutoloader(TorchDataset):
         return len(self.configs)
 
     def __getitem__(self, idx):
-        print(self.train_on)
-        if self.train_on:
-            # If train_on flag is set then only fetch that property
-            query_dict = {"configuration": self.configs[idx].coords}
-            if isinstance(self.train_on, list):
-                for train_on_property in self.train_on:
-                    query_dict[train_on_property] = self.configs[idx].__getattribute__(
-                        train_on_property
-                    )
-            elif isinstance(self.train_on, str):
-                query_dict[self.train_on] = self.configs[idx].__getattribute__(
-                    self.train_on
-                )
-            else:
-                raise ValueError(
-                    f"Expected type `str` or `list` of properties to train on, got {type(self.train_on)}"
-                )
-            return query_dict
-        else:
-            # Else return energy and forces
-            return {
-                "configuration": self.configs[idx].coords,
-                "energy": self.configs[idx].energy,
-                "forces": self.configs[idx].forces,
-            }
+        return self.configs[idx]
+        # if self.train_on:
+        #     # If train_on flag is set then only fetch that property
+        #     query_dict = {"configuration": self.configs[idx].coords}
+        #     if isinstance(self.train_on, list):
+        #         for train_on_property in self.train_on:
+        #             query_dict[train_on_property] = self.configs[idx].__getattribute__(
+        #                 train_on_property
+        #             )
+        #     elif isinstance(self.train_on, str):
+        #         query_dict[self.train_on] = self.configs[idx].__getattribute__(
+        #             self.train_on
+        #         )
+        #     else:
+        #         raise ValueError(
+        #             f"Expected type `str` or `list` of properties to train on, got {type(self.train_on)}"
+        #         )
+        #     return query_dict
+        # else:
+        #     # Else return energy and forces
+        #     return {
+        #         "configuration": self.configs[idx].coords,
+        #         "energy": self.configs[idx].energy,
+        #         "forces": self.configs[idx].forces,
+        #     }
 
 
 class ConfigurationError(Exception):

@@ -81,6 +81,7 @@ class AutoloaderConfiguration:
         self.configuration_id = configuration_id
         self.aux_property_fields = aux_property_fields
         self._is_initialized = False
+        self.descriptor = None
 
         if self.aux_property_fields:
             self._set_aux_properties()
@@ -522,9 +523,10 @@ class DatasetAutoloader(TorchDataset):
         colabfit_database=None,
         kim_property=None,
         colabfit_dataset=None,
+        descriptor=None,
     ):
         self.file_format = file_format
-
+        self.descriptor = descriptor
         if path is not None:
             self.configs = self._read(path, file_format)
 
@@ -660,7 +662,10 @@ class DatasetAutoloader(TorchDataset):
         return len(self.configs)
 
     def __getitem__(self, idx):
-        return self.configs[idx]
+        if self.descriptor and not self.configs[idx].descriptor:
+            self.configs[idx].descriptor = self.descriptor.transform(self.configs[idx])
+        else:
+            return self.configs[idx]
         # if self.train_on:
         #     # If train_on flag is set then only fetch that property
         #     query_dict = {"configuration": self.configs[idx].coords}

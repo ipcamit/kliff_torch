@@ -715,6 +715,20 @@ class KIMModel(Model):
         kim_ca_instance.compute(self.kim_model)
         return kim_ca_instance.results
 
+    def parameters(self):
+        num_opt_parameters = self.get_num_opt_params()
+        parameter_list = []
+
+        for i in range(num_opt_parameters):
+            parameter_list.append(self.get_opt_param_name_value_and_indices(i))
+
+        return parameter_list
+
+    def copy_parameters(self, parameter, new_value):
+        # modify parameter class for more coherent approach
+        self.kim_model.set_parameter(parameter[2], parameter[3], new_value)
+        self.kim_model.clear_then_refresh()
+
 
 class KIMModelError(Exception):
     def __init__(self, msg):

@@ -1,7 +1,9 @@
 import os
-from collections import OrderedDict
+import pickle
+from collections import OrderedDict, namedtuple
 
 import numpy as np
+import torch
 from kliff.descriptors.descriptor import (
     Descriptor,
     generate_full_cutoff,
@@ -12,127 +14,84 @@ from kliff.descriptors.symmetry_function import sf  # C extension
 from kliff.neighbor import NeighborList
 from loguru import logger
 
+# class SymmetryFunctionTorch(torch.nn.Module):
+#     def __init__(self, hyperparam, cutoff=10.0, cut_name="cos", fit_forces=False):
+#         super(SymmetryFunctionTorch, self).__init__()
+#         self.hyperpram = hyperparam
+#         self.cutoff = cutoff
+#         self.cut_name = cut_name
+#         self.fit_forces = fit_forces
+#
 
-class SymmetryFunction(Descriptor):
-    r"""Atom-centered symmetry functions descriptor as discussed in [Behler2011]_.
+class SymmetryFunction:
+    def __new__(cls, *args, **kwargs):
+        try:
+            normalize = kwargs["normalize"]
+        except KeyError:
+            kwargs["normalize"] = False
 
-    Parameters
-    ----------
-    cut_dists: dict
-        Cutoff distances, with key of the form ``A-B`` where ``A`` and ``B`` are
-        atomic species string, and value should be a float.
+        try:
+            mean_std_file = kwargs["mean_std_file"]
+        except KeyError:
+            kwargs["mean_std_file"] = "fingerprints_mean_and_stdev.pkl"
 
-    cut_name: str
-        Name of the cutoff function.
+        # try:
+        #     fingerprint_file = kwargs["fingerprint_file"]
+        # except KeyError:
+        #     kwargs["fingerprint_file"] = "fingerprints_mean_and_stdev.pkl"
+        #
+        # try:
+        #     reuse = kwargs["reuse"]
+        # except KeyError:
+        #     kwargs["reuse"] = False
 
-    hyperparams: dict or str
-        A dictionary of the hyper parameters of that define the descriptor. We provide two
-        sets of hyperparams that can be used by setting ``hyperparams='set51'`` or
-        ``hyperparams='set30'``, which are taken from [Artrith2012]_ and [Artrith2013]_,
-        respectively. To see what they are, one can do:
+        try:
+            fit_forces = kwargs["fit_forces"]
+        except KeyError:
+            kwargs["fit_forces"] = False
 
-        >>> cut_name = 'cos'  # just for init purpose
-        >>> cut_dists = {'C-C': 5.}  # just for init purpose
-        >>> hyperparams = 'set51'
-        >>> desc = SymmetryFunction(cut_dists, cut_name, hyperparams)
-        >>> desc.get_hyperparams()
+        try:
+            fit_stress = kwargs["fit_stress"]
+        except KeyError:
+            kwargs["fit_stress"] = False
 
-    normalize: bool (optional)
-        If ``True``, the fingerprints is centered and normalized according to:
-        ``zeta = (zeta - mean(zeta)) / stdev(zeta)``
+        # try:
+        #     dataset = kwargs["dataset"]
+        # except KeyError:
+        #     kwargs["dataset"] = None
 
-    dtype: np.dtype (optional)
-        Data type for the generated fingerprints, such as ``np.float32`` and
-        ``np.float64``.
+        if len(args) == 3 or (("cut_dists" in kwargs) and ("cut_name" in kwargs) and ("hyperparams" in kwargs)):
+                return SymmetryFunctionTransform(*args,**kwargs)
+        elif len(args) == 1 or "from_file" in kwargs:
+            pass
+        else:
+            raise SymmetryFunctionError("Improper positional arguments given, either provide cutoff distance cut off function name and hyperparameter type or provide file from which descriptors can be loaded")
 
-    Example
-    -------
 
-    If ``set51`` or ``set30`` hyperparams are used, the cutoff distances should be
-    given in ``Angstrom``.
-
-    >>> cut_name = 'cos'
-    >>> cut_dists = {'C-C': 5., 'C-H': 4.5, 'H-H': 4.0}
-    >>> hyperparams = 'set51'
-    >>> desc = SymmetryFunction(cut_dists, cut_name, hyperparams)
-
-    You can provide your own hyperparams as a dictionary:
-
-    >>> cut_name = 'cos'
-    >>> cut_dists = {'C-C': 5., 'C-H': 4.5, 'H-H': 4.0}
-    >>> hyperparams = {'g1': None,
-    >>>                'g2': [{'eta':0.1, 'Rs':0.2}, {'eta':0.3, 'Rs':0.4}],
-    >>>                'g3': [{'kappa':0.1}, {'kappa':0.2}, {'kappa':0.3}]}
-    >>> desc = SymmetryFunction(cut_dists, cut_name, hyperparams)
-
-    References
-    ----------
-    .. [Behler2011] J. Behler, "Atom-centered symmetry functions for constructing
-       high-dimensional neural network potentials," J. Chem. Phys. 134, 074106
-       (2011).
-    .. [Artrith2012] N. Artrith and J. Behler. "High-dimensional neural network
-       potentials for metal surfaces: A prototype study for copper." Physical Review
-       B 85, no. 4 (2012): 045439.
-    .. [Artrith2013] N. Artrith, B. Hiller, and J. Behler. "Neural network potentials
-       for metals and oxides–First applications to copper clusters at zinc oxide."
-       physica status solidi (b) 250, no. 6 (2013): 1191-1203.
-    """
-
+class SymmetryFunctionTransform:
+    r"""Atom-centered symmetry functions descriptor as discussed in [Behler2011]_."""
     def __init__(
-        self, cut_dists, cut_name, hyperparams, normalize=True, dtype=np.float32, enable_grad=False
+        self, cut_dists, cut_name, hyperparams, dtype=np.float32, fit_forces=False, fit_stress=False, normalize=False, reuse=False, mean_std_file=None,dataset=None
     ):
-        super(SymmetryFunction, self).__init__(
-            cut_dists, cut_name, hyperparams, normalize, dtype
-        )
-
         self._desc = OrderedDict()
-
         self._cdesc = sf.Descriptor()
+        self.cut_name = cut_name
+        self.cut_dists = cut_dists
+        self.hyperparams = hyperparams
+        self.dtype = dtype
         self._set_cutoff()
         self._set_hyperparams()
-        self.size = self.get_size()
-        self.enable_grad = enable_grad
+        self.size = self.get_width()
+        self.fit_forces = fit_forces
+        self.fit_stress = fit_stress
+        self.normalize = normalize
+        self.mean_std_file = mean_std_file
+
 
         logger.debug(f"`{self.__class__.__name__}` descriptor initialized.")
 
-    def transform(self, conf, fit_forces=False, fit_stress=False):
+    def transform(self, conf):
         r"""Transform atomic coords to atomic environment descriptor values.
-
-        Parameters
-        ----------
-        conf: :class:`~kliff.dataset.Configuration` object
-            A configuration of atoms.
-
-
-        fit_forces: bool (optional)
-            Whether to compute the gradient of descriptor values w.r.t. atomic
-            coordinates so as to compute forces.
-
-        fit_stress: bool (optional)
-            Whether to compute the gradient of descriptor values w.r.t. atomic
-            coordinates so as to compute stress.
-
-        Returns
-        -------
-        zeta: 2D array
-            Descriptor values, each row for one atom.
-            zeta has shape (num_atoms, num_descriptors), where num_atoms is the
-            number of atoms in the configuration, and num_descriptors is the size
-            of the descriptor vector (depending on the the choice of hyper-parameters).
-
-        dzetadr_forces: 3D array if fit_forces is ``True``, otherwise ``None``
-            Gradient of descriptor values w.r.t. atomic coordinates for forces
-            computation.
-            dzetadr_forces has shape (num_atoms, num_descriptors, num_atoms*DIM), where
-            num_atoms and num_descriptors has the same meanings as described in zeta.
-            DIM = 3 denotes three Cartesian coordinates.
-
-        dzetadr_stress: 3D array if fit_stress is ``True``, otherwise ``None``
-            Gradient of descriptor values w.r.t. atomic coordinates for stress computation.
-            dzetadr_stress has shape (num_atoms, num_descriptors, 6), where
-            num_atoms and num_descriptors has the same meanings as described in zeta.
-            The last dimension is the 6 component associated with virial stress in the
-            order of 11, 22, 33, 23, 31, 12.
         """
 
         # create neighbor list
@@ -144,12 +103,9 @@ class SymmetryFunction(Descriptor):
         species = np.asarray([self.species_code[i] for i in nei.species], dtype=np.intc)
 
         Ncontrib = conf.get_num_atoms()
-        Ndesc = len(self)
+        Ndesc = self.get_width()
 
-        grad = fit_forces or fit_stress or self.enable_grad
-
-        if not fit_forces and self.enable_grad:
-            fit_forces = True
+        grad = self.fit_forces or self.fit_stress
 
         zeta_config = []
         dzetadr_forces_config = []
@@ -169,7 +125,7 @@ class SymmetryFunction(Descriptor):
                 atom_ids = np.concatenate((neigh_indices, [i]))
                 dzetadr = dzetadr.reshape(Ndesc, -1, 3)
 
-            if fit_forces or self.enable_grad:
+            if self.fit_forces:
                 dzetadr_forces = np.zeros((Ndesc, Ncontrib, 3))
                 for ii, idx in enumerate(atom_ids):
                     org_idx = image[idx]
@@ -177,7 +133,7 @@ class SymmetryFunction(Descriptor):
                 dzetadr_forces_config.append(dzetadr_forces.reshape(Ndesc, -1))
                 # self.grads = np.asarray(dzetadr_forces_config)
 
-            if fit_stress:
+            if self.fit_stress:
                 dzetadr_stress = np.zeros((Ndesc, 6))
                 for ii, idx in enumerate(atom_ids):
                     dzetadr_stress[:, 0] += dzetadr[:, ii, 0] * coords[idx][0]
@@ -188,13 +144,13 @@ class SymmetryFunction(Descriptor):
                     dzetadr_stress[:, 5] += dzetadr[:, ii, 0] * coords[idx][1]
                 dzetadr_stress_config.append(dzetadr_stress)
 
-        zeta_config = np.asarray(zeta_config)
-        if fit_forces:
-            dzetadr_forces_config = np.asarray(dzetadr_forces_config)
+        zeta_config = torch.tensor(zeta_config)
+        if self.fit_forces:
+            dzetadr_forces_config = torch.tensor(dzetadr_forces_config)
         else:
             dzetadr_forces_config = None
-        if fit_stress:
-            dzetadr_stress_config = np.asarray(dzetadr_stress_config)
+        if self.fit_stress:
+            dzetadr_stress_config = torch.tensor(dzetadr_stress_config)
         else:
             dzetadr_stress_config = None
 
@@ -213,7 +169,7 @@ class SymmetryFunction(Descriptor):
                 s += f"{j:.15g} "
             logger.debug(s)
 
-        return zeta_config, dzetadr_forces_config, dzetadr_stress_config
+        return {"zeta": zeta_config, "dzetadr_forces": dzetadr_forces_config, "dzetadr_stress": dzetadr_stress_config}
 
     def _set_cutoff(self):
         supported = ["cos"]
@@ -286,121 +242,82 @@ class SymmetryFunction(Descriptor):
             self._desc[name] = params
             self._cdesc.add_descriptor(name, params)
 
-    def write_kim_params(self, path, fname="descriptor.params"):
-
-        with open(os.path.join(path, fname), "w") as fout:
-
-            if self.dtype == np.float64:
-                fmt = "{:.15e} "
-            else:
-                fmt = "{:.7e} "
-
-            # header
-            fout.write("#" + "=" * 80 + "\n")
-            fout.write("# Descriptor parameters file generated by KLIFF.\n")
-            fout.write("#" + "=" * 80 + "\n\n")
-
-            # cutoff and species
-            cutname, rcut = self.get_cutoff()
-            unique_pairs = generate_unique_cutoff_pairs(rcut)
-            species = generate_species_code(rcut)
-
-            fout.write("{}  # cutoff type\n\n".format(cutname))
-            fout.write("{}  # number of species\n\n".format(len(species)))
-            fout.write("# species 1    species 2    cutoff\n")
-            for key, value in unique_pairs.items():
-                s1, s2 = key.split("-")
-                fout.write(("{}  {}  " + fmt + "\n").format(s1, s2, value))
-            fout.write("\n")
-
-            #
-            # symmetry functions
-            #
-
-            # header
-            fout.write("#" + "=" * 80 + "\n")
-            fout.write("# symmetry functions\n")
-            fout.write("#" + "=" * 80 + "\n\n")
-
-            desc = self.get_hyperparams()
-            num_desc = len(desc)
-            fout.write("{}  # number of symmetry functions types\n\n".format(num_desc))
-
-            # descriptor values
-            fout.write("# sym_function    rows    cols\n")
-            for name, values in desc.items():
-                if name == "g1":
-                    fout.write("g1\n\n")
-                else:
-                    rows = len(values)
-                    cols = len(values[0])
-                    fout.write("{}    {}    {}\n".format(name, rows, cols))
-                    if name == "g2":
-                        for val in values:
-                            fout.write((fmt * 2).format(val[0], val[1]))
-                            fout.write("    # eta  Rs\n")
-                        fout.write("\n")
-                    elif name == "g3":
-                        for val in values:
-                            fout.write((fmt).format(val[0]))
-                            fout.write("    # kappa\n")
-                        fout.write("\n")
-                    elif name == "g4":
-                        for val in values:
-                            zeta = val[0]
-                            lam = val[1]
-                            eta = val[2]
-                            fout.write((fmt * 3).format(zeta, lam, eta))
-                            fout.write("    # zeta  lambda  eta\n")
-                        fout.write("\n")
-                    elif name == "g5":
-                        for val in values:
-                            zeta = val[0]
-                            lam = val[1]
-                            eta = val[2]
-                            fout.write((fmt * 3).format(zeta, lam, eta))
-                            fout.write("    # zeta  lambda  eta\n")
-                        fout.write("\n")
-
-            #
-            # data centering and normalization
-            #
-
-            # header
-            fout.write("#" + "=" * 80 + "\n")
-            fout.write("# Preprocessing data to center and normalize\n")
-            fout.write("#" + "=" * 80 + "\n")
-
-            # mean and stdev
-            mean = self.get_mean()
-            stdev = self.get_stdev()
-            if mean is None and stdev is None:
-                fout.write("center_and_normalize  False\n")
-            else:
-                fout.write("center_and_normalize  True\n\n")
-
-                fout.write("{}   # descriptor size\n".format(self.get_size()))
-
-                fout.write("# mean\n")
-                for i in mean:
-                    fout.write((fmt + "\n").format(i))
-                fout.write("\n# standard deviation\n")
-                for i in stdev:
-                    fout.write((fmt + "\n").format(i))
-                fout.write("\n")
-
-    def get_size(self):
-        return len(self)
-
-    def get_hyperparams(self):
-        return self._desc
-
-    def __len__(self):
+    def get_width(self):
         N = 0
         for key in self._desc:
             N += len(self._desc[key])
         return N
 
+    def get_hyperparams(self):
+        return self._desc
+
+    def _set_mean_std(self):
+
+        if not self.normalize:
+            self.mean = 1.0
+            self.std = 1.0
+        elif self.mean_std_file:
+            data = pickle.load(open(self.mean_std_file, "rb"))
+            try:
+                mean = data["mean"]
+                stdev = data["stdev"]
+                size = data["size"]
+            except Exception as e:
+                raise ValueError(f"Corrupted state dict for descriptor: {str(e)}")
+
+            # more checks on data integrity
+            if mean is not None and stdev is not None and size is not None:
+                if len(mean.shape) != 1 or mean.shape[0] != size:
+                    raise ValueError(f"Corrupted descriptor mean.")
+
+                if len(stdev.shape) != 1 or stdev.shape[0] != size:
+                    raise ValueError("Corrupted descriptor standard deviation.")
+
+            self.mean = mean
+            self.stdev = stdev
+            self.size = size
+
+
+    def _calc_zeta_dzetadr(self, configs, fit_forces, fit_stress, nprocs=1):
+        """
+        Calculate the fingerprints and maybe its gradients w.r.t the atomic coords.
+        """
+        if nprocs == 1:
+            zeta = []
+            dzetadr_forces = []
+            dzetadr_stress = []
+            for conf in configs:
+                z, dzdr_f, dzdr_s = self.transform(conf, fit_forces, fit_stress)
+                zeta.append(z)
+                dzetadr_forces.append(dzdr_f)
+                dzetadr_stress.append(dzdr_s)
+        # else:
+        #     rslt = parallel.parmap1(
+        #         self.transform, configs, fit_forces, fit_stress, nprocs=nprocs
+        #     )
+        #     zeta = [pair[0] for pair in rslt]
+        #     dzetadr_forces = [pair[1] for pair in rslt]
+        #     dzetadr_stress = [pair[2] for pair in rslt]
+
+        return zeta, dzetadr_forces, dzetadr_stress
+
+# def SymmetryFunctionDataset:
+#     def __init__(self, filename: Path, transform: Optional[Callable] = None):
+#         self.fp = load_fingerprints(filename)
+#         self.transform = transform
+#
+#     def __len__(self):
+#         return len(self.fp)
+#
+#     def __getitem__(self, index):
+#         sample = self.fp[index]
+#         if self.transform:
+#             sample = self.transform(sample)
+#         return sample
+#
+
+def SymmetryFunctionPrecompute():
+    pass
 
 def get_set51():
     r"""Hyperparameters for symmetry functions, as discussed in:
@@ -536,6 +453,7 @@ def get_set30():
                 val["eta"] /= bhor2ang ** 2
 
     return params
+
 
 
 class SymmetryFunctionError(Exception):

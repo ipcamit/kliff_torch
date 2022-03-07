@@ -183,37 +183,7 @@ class Descriptor:
                     dzetadr_f = all_dzetadr_forces[i]
                     dzetadr_s = all_dzetadr_stress[i]
 
-                # centering and normalization
-                if self.normalize:
-                    zeta = (zeta - self.mean) / self.stdev
-                    if fit_forces or fit_stress:
-                        stdev_3d = np.atleast_3d(self.stdev)
-                    if fit_forces:
-                        dzetadr_f = dzetadr_f / stdev_3d
-                    if fit_stress:
-                        dzetadr_s = dzetadr_s / stdev_3d
 
-                # pickling data
-                zeta = np.asarray(zeta, self.dtype)
-                energy = np.asarray(conf.energy, self.dtype)
-                if fit_forces:
-                    dzetadr_f = np.asarray(dzetadr_f, self.dtype)
-                    forces = np.asarray(conf.forces, self.dtype)
-                if fit_stress:
-                    dzetadr_s = np.asarray(dzetadr_s, self.dtype)
-                    stress = np.asarray(conf.stress, self.dtype)
-                    volume = np.asarray(conf.get_volume(), self.dtype)
-
-                example = {"configuration": conf, "zeta": zeta, "energy": energy}
-                if fit_forces:
-                    example["dzetadr_forces"] = dzetadr_f
-                    example["forces"] = forces
-                if fit_stress:
-                    example["dzetadr_stress"] = dzetadr_s
-                    example["stress"] = stress
-                    example["volume"] = volume
-
-                pickle.dump(example, f)
 
         logger.info(f"Pickle {len(configs)} configurations finished.")
 
@@ -385,6 +355,9 @@ class Descriptor:
         self.mean = mean
         self.stdev = stdev
         self.size = size
+
+    def as_torch_layer(self):
+        raise NotImplementedError
 
 
 def load_fingerprints(path: Union[Path, str]):

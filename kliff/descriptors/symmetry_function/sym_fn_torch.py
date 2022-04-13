@@ -4,6 +4,8 @@ from collections import OrderedDict, namedtuple
 
 import numpy as np
 import torch
+from traitlets import Any
+
 from kliff.descriptors.descriptor import (
     Descriptor,
     generate_full_cutoff,
@@ -14,58 +16,192 @@ from kliff.descriptors.symmetry_function import sf  # C extension
 from kliff.neighbor import NeighborList
 from loguru import logger
 
-# class SymmetryFunctionTorch(torch.nn.Module):
-#     def __init__(self, hyperparam, cutoff=10.0, cut_name="cos", fit_forces=False):
-#         super(SymmetryFunctionTorch, self).__init__()
-#         self.hyperpram = hyperparam
-#         self.cutoff = cutoff
-#         self.cut_name = cut_name
-#         self.fit_forces = fit_forces
-#
+class SymmetryFunctionTorch:
+    def __init__(self, hyperparam, cutoff=10.0, cut_name="cos", fit_forces=False):
+        super(SymmetryFunctionTorch, self).__init__()
+        self.hyperpram = hyperparam
+        self.cutoff = cutoff
+        self.cut_name = cut_name
+        self.fit_forces = fit_forces
+        self.descriptor_function = sf.Descriptor()
 
-class SymmetryFunction:
-    def __new__(cls, *args, **kwargs):
-        try:
-            normalize = kwargs["normalize"]
-        except KeyError:
-            kwargs["normalize"] = False
+    def _set_cutoff(self):
+        supported = ["cos"]
+        if self.cut_name is None:
+            self.cut_name = supported[0]
+        if self.cut_name not in supported:
+            spd = ['"{}", '.format(s) for s in supported]
+            raise SymmetryFunctionError(
+                'Cutoff "{}" not supported by this descriptor. Use {}.'.format(
+                    self.cut_name, spd
+                )
+            )
 
-        try:
-            mean_std_file = kwargs["mean_std_file"]
-        except KeyError:
-            kwargs["mean_std_file"] = "fingerprints_mean_and_stdev.pkl"
+        self.cutoff = generate_full_cutoff(self.cut_dists)
+        self.species_code = generate_species_code(self.cut_dists)
+        num_species = len(self.species_code)
 
-        # try:
-        #     fingerprint_file = kwargs["fingerprint_file"]
-        # except KeyError:
-        #     kwargs["fingerprint_file"] = "fingerprints_mean_and_stdev.pkl"
-        #
-        # try:
-        #     reuse = kwargs["reuse"]
-        # except KeyError:
-        #     kwargs["reuse"] = False
+        rcutsym = np.zeros([num_species, num_species], dtype=np.double)
+        for si, i in self.species_code.items():
+            for sj, j in self.species_code.items():
+                rcutsym[i][j] = self.cutoff[si + "-" + sj]
+        self.descriptor_function.set_cutoff(self.cut_name, rcutsym)
 
-        try:
-            fit_forces = kwargs["fit_forces"]
-        except KeyError:
-            kwargs["fit_forces"] = False
+    def _set_hyperparams(self):
+        if isinstance(self.hyperparams, str):
+            name = self.hyperparams.lower()
+            if name == "set51":
+                self.hyperparams = get_set51_torch()
+            elif name == "set30":
+                self.hyperparams = get_set30_torch()
+            else:
+                raise SymmetryFunctionError(
+                    'hyperparams "{}" unrecognized.'.format(name)
+                )
+        # if not isinstance(self.hyperparams, OrderedDict):
+        #     self.hyperparams = OrderedDict(self.hyperparams)
 
-        try:
-            fit_stress = kwargs["fit_stress"]
-        except KeyError:
-            kwargs["fit_stress"] = False
+        # hyperparams of descriptors
+        for idx, key in enumerate(self.hyperparams._fields):
+            if key.lower() not in ["g1", "g2", "g3", "g4", "g5"]:
+                raise SymmetryFunctionError(
+                    'Symmetry function "{}" unrecognized.'.format(key)
+                )
 
-        # try:
-        #     dataset = kwargs["dataset"]
-        # except KeyError:
-        #     kwargs["dataset"] = None
+            # g1 needs no hyperparams, put a placeholder
+            name = key.lower()
+            if name == "g1":
+                # it has no hyperparams, zeros([1,1]) for placeholder
+                params = np.zeros([1, 1], dtype=np.double)
+            else:
+                params = self.hyperparams[idx]
+            # store cutoff values in both this python and cpp class
+            # self._desc[name] = params
+            self.descriptor_function.add_descriptor(name, params)
 
-        if len(args) == 3 or (("cut_dists" in kwargs) and ("cut_name" in kwargs) and ("hyperparams" in kwargs)):
-                return SymmetryFunctionTransform(*args,**kwargs)
-        elif len(args) == 1 or "from_file" in kwargs:
-            pass
-        else:
-            raise SymmetryFunctionError("Improper positional arguments given, either provide cutoff distance cut off function name and hyperparameter type or provide file from which descriptors can be loaded")
+    # def _return_autograd_padded_descriptor(self):
+    #     class autograd_padded_descriptor(torch.autograd.Function):
+    #         @staticmethod
+    #         def forward(ctx,coords,func):
+    #
+
+
+
+def get_set51_torch():
+    r"""Hyperparameters for symmetry functions, as discussed in:
+    Nongnuch Artrith and Jorg Behler. "High-dimensional neural network potentials for
+    metal surfaces: A prototype study for copper." Physical Review B 85, no. 4 (2012):
+    045439.
+    """
+    hyperparameters = namedtuple("hyperparameters", "g2, g4")
+    # g2 = [eta Rs], g4 = [zeta, lambda, eta]
+    bhor2ang = 0.529177
+    g2 = np.array([[0.001,  0.0],
+                 [0.01,  0.0],
+                 [0.02,  0.0],
+                 [0.035,  0.0],
+                 [0.06,  0.0],
+                 [0.1,  0.0],
+                 [0.2,  0.0],
+                 [0.4,  0.0]], dtype=np.double)
+    g4 = np.array([[1, -1, 0.0001],
+                [1, 1, 0.0001],
+                [2, -1, 0.0001],
+                [2, 1, 0.0001],
+                [1, -1, 0.003],
+                [1, 1, 0.003],
+                [2, -1, 0.003],
+                [2, 1, 0.003],
+                [1, -1, 0.008],
+                [1, 1, 0.008],
+                [2, -1, 0.008],
+                [2, 1, 0.008],
+                [1, -1, 0.015],
+                [1, 1, 0.015],
+                [2, -1, 0.015],
+                [2, 1, 0.015],
+                [4, -1, 0.015],
+                [4, 1, 0.015],
+                [16, -1, 0.015],
+                [16, 1, 0.015],
+                [1, -1, 0.025],
+                [1, 1, 0.025],
+                [2, -1, 0.025],
+                [2, 1, 0.025],
+                [4, -1, 0.025],
+                [4, 1, 0.025],
+                [16, -1, 0.025],
+                [16, 1, 0.025],
+                [1, -1, 0.045],
+                [1, 1, 0.045],
+                [2, -1, 0.045],
+                [2, 1, 0.045],
+                [4, -1, 0.045],
+                [4, 1, 0.045],
+                [16, -1, 0.045],
+                [16, 1, 0.045],
+                [1, -1, 0.08],
+                [1, 1, 0.08],
+                [2, -1, 0.08],
+                [2, 1, 0.08],
+                [4, -1, 0.08],
+                [4, 1, 0.08],
+                [16, 1, 0.08]], dtype=np.double)
+    g2[:,0] /= bhor2ang
+    g4[:,2] /= bhor2ang
+
+    params = hyperparameters(g2, g4)
+    # transfer units from bohr to angstrom
+    return params
+
+def get_set30_torch():
+    r"""Hyperparameters for symmetry functions, as discussed in:
+    Artrith, N., Hiller, B. and Behler, J., 2013. Neural network potentials for metals and
+    oxides–First applications to copper clusters at zinc oxide. physica status solidi (b),
+    250(6), pp.1191-1203.
+    """
+    hyperparameters = namedtuple("hyperparameters", "g2, g4")
+    # g2 = [eta Rs], g4 = [zeta, lambda, eta]
+    bhor2ang = 0.529177
+
+    g2 = np.array([[0.0009, 0.0],
+        [0.01, 0.0],
+        [0.02, 0.0],
+        [0.035, 0.0],
+        [0.06, 0.0],
+        [0.1, 0.0],
+        [0.2, 0.0],
+        [0.4, 0.0]],dtype=np.double)
+
+    g4 = np.array([[1,  1, 0.0001],
+        [1, 1, 0.0001],
+        [2,  1, 0.0001],
+        [2, 1, 0.0001],
+        [1,  1, 0.003],
+        [1, 1, 0.003],
+        [2,  1, 0.003],
+        [2, 1, 0.003],
+        [1, 1, 0.008],
+        [2, 1, 0.008],
+        [1, 1, 0.015],
+        [2, 1, 0.015],
+        [4, 1, 0.015],
+        [16, 1, 0.015],
+        [1, 1, 0.025],
+        [2, 1, 0.025],
+        [4, 1, 0.025],
+        [16, 1, 0.025],
+        [1, 1, 0.045],
+        [2, 1, 0.045],
+        [4, 1, 0.045],
+        [16, 1, 0.045]], dtype=np.double)
+
+    # transfer units from bohr to angstrom
+    g2[:,0] /= bhor2ang
+    g4[:,2] /= bhor2ang
+
+    params = hyperparameters(g2, g4)
+    return params
 
 
 class SymmetryFunctionTransform:
@@ -315,145 +451,6 @@ class SymmetryFunctionTransform:
 #             sample = self.transform(sample)
 #         return sample
 #
-
-def SymmetryFunctionPrecompute():
-    pass
-
-def get_set51():
-    r"""Hyperparameters for symmetry functions, as discussed in:
-    Nongnuch Artrith and Jorg Behler. "High-dimensional neural network potentials for
-    metal surfaces: A prototype study for copper." Physical Review B 85, no. 4 (2012):
-    045439.
-    """
-
-    params = OrderedDict()
-
-    params["g2"] = [
-        {"eta": 0.001, "Rs": 0.0},
-        {"eta": 0.01, "Rs": 0.0},
-        {"eta": 0.02, "Rs": 0.0},
-        {"eta": 0.035, "Rs": 0.0},
-        {"eta": 0.06, "Rs": 0.0},
-        {"eta": 0.1, "Rs": 0.0},
-        {"eta": 0.2, "Rs": 0.0},
-        {"eta": 0.4, "Rs": 0.0},
-    ]
-
-    params["g4"] = [
-        {"zeta": 1, "lambda": -1, "eta": 0.0001},
-        {"zeta": 1, "lambda": 1, "eta": 0.0001},
-        {"zeta": 2, "lambda": -1, "eta": 0.0001},
-        {"zeta": 2, "lambda": 1, "eta": 0.0001},
-        {"zeta": 1, "lambda": -1, "eta": 0.003},
-        {"zeta": 1, "lambda": 1, "eta": 0.003},
-        {"zeta": 2, "lambda": -1, "eta": 0.003},
-        {"zeta": 2, "lambda": 1, "eta": 0.003},
-        {"zeta": 1, "lambda": -1, "eta": 0.008},
-        {"zeta": 1, "lambda": 1, "eta": 0.008},
-        {"zeta": 2, "lambda": -1, "eta": 0.008},
-        {"zeta": 2, "lambda": 1, "eta": 0.008},
-        {"zeta": 1, "lambda": -1, "eta": 0.015},
-        {"zeta": 1, "lambda": 1, "eta": 0.015},
-        {"zeta": 2, "lambda": -1, "eta": 0.015},
-        {"zeta": 2, "lambda": 1, "eta": 0.015},
-        {"zeta": 4, "lambda": -1, "eta": 0.015},
-        {"zeta": 4, "lambda": 1, "eta": 0.015},
-        {"zeta": 16, "lambda": -1, "eta": 0.015},
-        {"zeta": 16, "lambda": 1, "eta": 0.015},
-        {"zeta": 1, "lambda": -1, "eta": 0.025},
-        {"zeta": 1, "lambda": 1, "eta": 0.025},
-        {"zeta": 2, "lambda": -1, "eta": 0.025},
-        {"zeta": 2, "lambda": 1, "eta": 0.025},
-        {"zeta": 4, "lambda": -1, "eta": 0.025},
-        {"zeta": 4, "lambda": 1, "eta": 0.025},
-        {"zeta": 16, "lambda": -1, "eta": 0.025},
-        {"zeta": 16, "lambda": 1, "eta": 0.025},
-        {"zeta": 1, "lambda": -1, "eta": 0.045},
-        {"zeta": 1, "lambda": 1, "eta": 0.045},
-        {"zeta": 2, "lambda": -1, "eta": 0.045},
-        {"zeta": 2, "lambda": 1, "eta": 0.045},
-        {"zeta": 4, "lambda": -1, "eta": 0.045},
-        {"zeta": 4, "lambda": 1, "eta": 0.045},
-        {"zeta": 16, "lambda": -1, "eta": 0.045},
-        {"zeta": 16, "lambda": 1, "eta": 0.045},
-        {"zeta": 1, "lambda": -1, "eta": 0.08},
-        {"zeta": 1, "lambda": 1, "eta": 0.08},
-        {"zeta": 2, "lambda": -1, "eta": 0.08},
-        {"zeta": 2, "lambda": 1, "eta": 0.08},
-        {"zeta": 4, "lambda": -1, "eta": 0.08},
-        {"zeta": 4, "lambda": 1, "eta": 0.08},
-        # {'zeta':16,  'lambda':-1,  'eta':0.08 },
-        {"zeta": 16, "lambda": 1, "eta": 0.08},
-    ]
-
-    # transfer units from bohr to angstrom
-    bhor2ang = 0.529177
-    for key, values in params.items():
-        for val in values:
-            if key == "g2":
-                val["eta"] /= bhor2ang ** 2
-            elif key == "g4":
-                val["eta"] /= bhor2ang ** 2
-
-    return params
-
-
-def get_set30():
-    r"""Hyperparameters for symmetry functions, as discussed in:
-    Artrith, N., Hiller, B. and Behler, J., 2013. Neural network potentials for metals and
-    oxides–First applications to copper clusters at zinc oxide. physica status solidi (b),
-    250(6), pp.1191-1203.
-    """
-
-    params = OrderedDict()
-
-    params["g2"] = [
-        {"eta": 0.0009, "Rs": 0.0},
-        {"eta": 0.01, "Rs": 0.0},
-        {"eta": 0.02, "Rs": 0.0},
-        {"eta": 0.035, "Rs": 0.0},
-        {"eta": 0.06, "Rs": 0.0},
-        {"eta": 0.1, "Rs": 0.0},
-        {"eta": 0.2, "Rs": 0.0},
-        {"eta": 0.4, "Rs": 0.0},
-    ]
-
-    params["g4"] = [
-        {"zeta": 1, "lambda": -1, "eta": 0.0001},
-        {"zeta": 1, "lambda": 1, "eta": 0.0001},
-        {"zeta": 2, "lambda": -1, "eta": 0.0001},
-        {"zeta": 2, "lambda": 1, "eta": 0.0001},
-        {"zeta": 1, "lambda": -1, "eta": 0.003},
-        {"zeta": 1, "lambda": 1, "eta": 0.003},
-        {"zeta": 2, "lambda": -1, "eta": 0.003},
-        {"zeta": 2, "lambda": 1, "eta": 0.003},
-        {"zeta": 1, "lambda": 1, "eta": 0.008},
-        {"zeta": 2, "lambda": 1, "eta": 0.008},
-        {"zeta": 1, "lambda": 1, "eta": 0.015},
-        {"zeta": 2, "lambda": 1, "eta": 0.015},
-        {"zeta": 4, "lambda": 1, "eta": 0.015},
-        {"zeta": 16, "lambda": 1, "eta": 0.015},
-        {"zeta": 1, "lambda": 1, "eta": 0.025},
-        {"zeta": 2, "lambda": 1, "eta": 0.025},
-        {"zeta": 4, "lambda": 1, "eta": 0.025},
-        {"zeta": 16, "lambda": 1, "eta": 0.025},
-        {"zeta": 1, "lambda": 1, "eta": 0.045},
-        {"zeta": 2, "lambda": 1, "eta": 0.045},
-        {"zeta": 4, "lambda": 1, "eta": 0.045},
-        {"zeta": 16, "lambda": 1, "eta": 0.045},
-    ]
-
-    # transfer units from bohr to angstrom
-    bhor2ang = 0.529177
-    for key, values in params.items():
-        for val in values:
-            if key == "g2":
-                val["eta"] /= bhor2ang ** 2
-            elif key == "g4":
-                val["eta"] /= bhor2ang ** 2
-
-    return params
-
 
 
 class SymmetryFunctionError(Exception):

@@ -7,6 +7,7 @@
 #include <iostream>
 #include <stdlib.h>
 #include <vector>
+#include <limits>
 
 
 #define SMALL 1.0e-10
@@ -103,13 +104,12 @@ inline void coords_to_index(double const * x,
                             double const * min,
                             int * const index)
 {
-  for (int i = 0; i < 3; i++)
-  {
-    index[i]
-        = static_cast<int>(((x[i] - min[i]) / (max[i] - min[i])) * size[i]);
-    index[i] = std::min(index[i],
-                        size[i] - 1);  // handle edge case when x[i] = max[i]
-  }
+  index[0] = static_cast<int>(((x[0] - min[0]) / std::max(std::numeric_limits<double>::epsilon(),max[0] - min[0])) * size[0]);
+  index[0] = std::min(index[0], size[0] - 1);  // edge case when x[0] = max[0]
+  index[1] = static_cast<int>(((x[1] - min[1]) / std::max(std::numeric_limits<double>::epsilon(),max[1] - min[1])) * size[1]);
+  index[1] = std::min(index[1], size[1] - 1);  // edge case when x[1] = max[1]
+  index[2] = static_cast<int>(((x[2] - min[2]) / std::max(std::numeric_limits<double>::epsilon(),max[2] - min[2])) * size[2]);
+  index[2] = std::min(index[2], size[2] - 1);  // edge case when x[2] = max[2]
 }
 
 

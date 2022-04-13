@@ -235,6 +235,7 @@ class SymmetryFunction(Descriptor):
         for si, i in self.species_code.items():
             for sj, j in self.species_code.items():
                 rcutsym[i][j] = self.cutoff[si + "-" + sj]
+        print(self.cut_name, rcutsym)
         self._cdesc.set_cutoff(self.cut_name, rcutsym)
 
     def _set_hyperparams(self):

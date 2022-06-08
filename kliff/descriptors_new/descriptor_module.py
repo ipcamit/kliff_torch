@@ -55,17 +55,16 @@ class SymmetryFunction:
             neigh_list, _, _ = nl.get_neigh(i)
             descriptors[i,:] = ds.symmetry_function_atomic(
                                 i,
-                                configuration.coords,
+                                nl.coords,
                                 np.array(species, np.intc),
                                 np.array(neigh_list, np.intc),
                                 self.descriptor_width,
                                 self.data_container)
-            # print(i, descriptors[i,0:3])
         return descriptors
 
     def backward(self, configuration, dE_dZeta):
         nl = self.nl_builder(configuration, self.cut_dists)
-        derivatives = np.zeros(configuration.coords.shape)
+        derivatives_unrolled = np.zeros(nl.coords.shape)
         element_dict = {}
         for i, element in enumerate(Counter(nl.species)):
             element_dict[element] =  i
@@ -75,17 +74,25 @@ class SymmetryFunction:
             neigh_list, _, _ = nl.get_neigh(i)
             descriptors_derivative =  ds.grad_symmetry_function_atomic(
                                 i,
-                                configuration.coords,
+                                nl.coords,
                                 np.array(species, np.intc),
                                 np.array(neigh_list, np.intc),
                                 self.descriptor_width,
                                 self.data_container,
                                 dE_dZeta[i,:])
-            derivatives += descriptors_derivative.reshape(-1,3)
+            derivatives_unrolled += descriptors_derivative.reshape(-1,3)
+
+        derivatives = np.zeros(configuration.coords.shape)
+        neigh_images = nl.get_image()
+        for i, atom in enumerate(neigh_images):
+            derivatives[atom,:] += derivatives_unrolled[i,:]
+
         return derivatives
 
-    def compute_neighbours(configuration):
-        pass
+    def get_padded_coordinates(self, configuration):
+        nl = self.nl_builder(configuration, self.cut_dists)
+        return nl.coords
+
 
 def get_set51():
     r"""Hyperparameters for symmetry functions, as discussed in:
@@ -147,8 +154,8 @@ def get_set51():
                 [4, -1, 0.08],
                 [4, 1, 0.08],
                 [16, 1, 0.08]], dtype=np.double)
-    g2[:,0] /= bhor2ang
-    g4[:,2] /= bhor2ang
+    g2[:,0] /= bhor2ang ** 2
+    g4[:,2] /= bhor2ang ** 2
 
     params = hyperparameters(g2, g4)
     # transfer units from bohr to angstrom

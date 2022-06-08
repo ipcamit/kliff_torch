@@ -42,16 +42,17 @@ class TrainingWheels(torch.nn.Module):
         self.model = model
         self.parameters = model.parameters()
         self.descriptor_ctx = descriptor_ctx
+        self.model.descriptor = type(descriptor_ctx).__name__
 
 
     def forward(self, configuration):
+        # coordinate_tensor = torch.from_numpy(self.descriptor_ctx.get_padded_coordinates(configuration))
         coordinate_tensor = torch.from_numpy(configuration.coords)
         coordinate_tensor.requires_grad_(True)
         descriptor = self.descriptor_fn.apply(self.descriptor_ctx, configuration, coordinate_tensor)
-        descriptor = torch.from_numpy(descriptor)
-        descriptor.requires_grad_(True)
+        # descriptor = torch.from_numpy(descriptor)
+        # descriptor.requires_grad_(True)
         energy = self.model(descriptor)
         energy = energy.sum()
-        forces = torch.autograd.grad([energy], [coordinate_tensor], retain_graph=True, allow_unused=True)
-        print(forces)
-        return {"energy": energy, "forces": forces, "stress": None}
+        forces, = torch.autograd.grad([energy], [coordinate_tensor], retain_graph=True, allow_unused=True)
+        return {"energy": energy, "forces": -forces, "stress": None}

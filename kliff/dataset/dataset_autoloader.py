@@ -64,6 +64,7 @@ class AutoloaderConfiguration:
         property_id: Optional[str] = None,
         configuration_id: Optional[str] = None,
         aux_property_fields: List[str] = None,
+        dynamic_load=False
     ):
         self._cell = cell
         self._species = species
@@ -82,9 +83,14 @@ class AutoloaderConfiguration:
         self.aux_property_fields = aux_property_fields
         self._is_initialized = False
         self.descriptor = None
+        self.dynamic_load = dynamic_load
 
         if self.aux_property_fields:
             self._set_aux_properties()
+
+        if dynamic_load and is_colabfit_dataset:
+            self._load_at_once()
+
 
     # TODO enable config weight read in from file
     @classmethod
@@ -127,6 +133,7 @@ class AutoloaderConfiguration:
         configuration_id: str,
         property_ids: str,
         aux_property_fields: List[str] = None,
+        dynamic_load = False
     ):
         """
         Read configuration from colabfit database .
@@ -153,6 +160,7 @@ class AutoloaderConfiguration:
             configuration_id=configuration_id,
             property_id=property_ids,
             aux_property_fields=aux_property_fields,
+            dynamic_load=dynamic_load
         )
         return self
 
@@ -266,7 +274,7 @@ class AutoloaderConfiguration:
             if self.is_colabfit_dataset:
                 forces = self.get_colabfit_property("forces")
                 if forces is not None:
-                    self._forces = forces
+                    self._forces = np.array(forces)
                     return self._forces
             raise ConfigurationError("Configuration does not contain forces.")
         return self._forces
@@ -467,11 +475,25 @@ class AutoloaderConfiguration:
             # Temporary workaround against https://github.com/colabfit/colabfit-tools/issues/9
             try:
                 property_value = property_value[0].item()
+            except AttributeError:
+                property_value = property_value[0]
             except ValueError:
                 property_value = property_value[0]
             return property_value
         else:
             return None
+
+    def _load_at_once(self):
+        """
+        This method initializes and loads the properties during object creation only.
+        Can be disabled by setting dynamic_load flag to True.
+        Returns:
+        #TODO: more performant way of initializing from colabfit
+        """
+        self._initialize_from_colabfit()
+        _ = self.energy
+        _ = self.forces
+
 
     # TODO set up `getattribute` member to raise ConfigurationError for Nonetype properties
     # Currently it was getting in infinite loop
@@ -639,7 +661,7 @@ class DatasetAutoloader(TorchDataset):
             logger.error(f"{dataset_name} is either empty or does not exist")
             raise DatasetError(f"{dataset_name} is either empty or does not exist")
 
-        colabfit_dataset = client.get_dataset(dataset_id_query[0][0])
+        colabfit_dataset = client.get_dataset(dataset_id_query[0])
         configuration_ids, property_ids = (
             colabfit_dataset["dataset"].configuration_set_ids[0],
             colabfit_dataset["dataset"].property_ids,

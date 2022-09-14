@@ -25,13 +25,13 @@ In this tutorial, we train a neural network (NN) potential for silicon.
 #
 # Let's first import the modules that will be used in this example.
 
-from kliff import nn
-from kliff.calculators import CalculatorTorch
-from kliff.dataset import Dataset
-from kliff.descriptors import SymmetryFunction
-from kliff.loss import Loss
-from kliff.models import NeuralNetwork
-from kliff.utils import download_dataset
+from kliff_torch import nn
+from kliff_torch.calculators import CalculatorTorch
+from kliff_torch.dataset import Dataset
+from kliff_torch.descriptors import SymmetryFunction
+from kliff_torch.loss import Loss
+from kliff_torch.models import NeuralNetwork
+from kliff_torch.utils import download_dataset
 
 ##########################################################################################
 # Model
@@ -99,7 +99,7 @@ model.set_save_metadata(prefix="./kliff_saved_model", start=5, frequency=2)
 #
 # The training set and the calculator are the same as explained in :ref:`tut_kim_sw`. The
 # only difference is that we need to use the
-# :mod:`~kliff.calculators.CalculatorTorch()`, which is targeted for the NN model.
+# :mod:`~kliff_torch.calculators.CalculatorTorch()`, which is targeted for the NN model.
 # Also, its ``create()`` method takes an argument ``reuse`` to inform whether to reuse the
 # fingerprints generated from the descriptor if it is present.
 # To train on gpu, set ``gpu=True`` in ``CalculatorNew``.

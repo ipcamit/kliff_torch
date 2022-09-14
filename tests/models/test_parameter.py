@@ -1,7 +1,7 @@
 import warnings
 
 import numpy as np
-from kliff.models.parameter import OptimizingParameters, Parameter, ParameterError
+from kliff_torch.models.parameter import OptimizingParameters, Parameter, ParameterError
 
 
 def test_parameter():

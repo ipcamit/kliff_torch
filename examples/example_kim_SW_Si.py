@@ -35,11 +35,11 @@ on OpenKIM_.
 #
 # Let's first import the modules that will be used in this example.
 
-from kliff.calculators import Calculator
-from kliff.dataset import Dataset
-from kliff.loss import Loss
-from kliff.models import KIMModel
-from kliff.utils import download_dataset
+from kliff_torch.calculators import Calculator
+from kliff_torch.dataset import Dataset
+from kliff_torch.loss import Loss
+from kliff_torch.models import KIMModel
+from kliff_torch.utils import download_dataset
 
 ##########################################################################################
 # Model
@@ -61,9 +61,9 @@ model.echo_model_params()
 #    write the available parameters information to a file indicated by ``path``.
 #
 # .. note::
-#    The available parameters information can also by obtained using the **kliff**
+#    The available parameters information can also by obtained using the **kliff_torch**
 #    :ref:`cmdlntool`:
-#    ``$ kliff model --echo-params SW_StillingerWeber_1985_Si__MO_405512056662_006``
+#    ``$ kliff_torch model --echo-params SW_StillingerWeber_1985_Si__MO_405512056662_006``
 #
 # Now that we know what parameters are available for fitting, we can optimize all or a
 # subset of them to reproduce the training set.
@@ -106,7 +106,7 @@ model.echo_opt_params()
 # Training set
 # ------------
 #
-# KLIFF has a :class:`~kliff.dataset.Dataset` to deal with the training data (and possibly
+# KLIFF has a :class:`~kliff_torch.dataset.Dataset` to deal with the training data (and possibly
 # test data). For the silicon training set, we can read and process the files by:
 
 dataset_path = download_dataset(dataset_name="Si_training_set")
@@ -115,7 +115,7 @@ configs = tset.get_configs()
 
 
 ##########################################################################################
-# The ``configs`` in the last line is a list of :class:`~kliff.dataset.Configuration`.
+# The ``configs`` in the last line is a list of :class:`~kliff_torch.dataset.Configuration`.
 # Each configuration is an internal representation of a processed **extended xyz** file,
 # hosting the species, coordinates, energy, forces, and other related information of a
 # system of atoms.
@@ -124,7 +124,7 @@ configs = tset.get_configs()
 # CalculatorNew
 # ----------
 #
-# :class:`~kliff.calculator.CalculatorNew` is the central agent that exchanges information
+# :class:`~kliff_torch.calculator.CalculatorNew` is the central agent that exchanges information
 # and orchestrate the operation of the fitting process. It calls the model to compute the
 # energy and forces and provide this information to the `Loss function`_ (discussed below)
 # to compute the loss. It also grabs the parameters from the optimizer and update the

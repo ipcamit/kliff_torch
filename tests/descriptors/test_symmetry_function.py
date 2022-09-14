@@ -7,8 +7,8 @@ from collections import OrderedDict
 from pathlib import Path
 
 import numpy as np
-from kliff.dataset import Configuration
-from kliff.descriptors import SymmetryFunction
+from kliff_torch.dataset import Configuration
+from kliff_torch.descriptors import SymmetryFunction
 
 zeta_ref = [
     [

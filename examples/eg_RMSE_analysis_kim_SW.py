@@ -3,11 +3,11 @@ Compute the root-mean-square error (RMSE) of a model prediction and reference va
 the dataset.
 """
 
-from kliff.analyzers import EnergyForcesRMSE
-from kliff.calculators import Calculator
-from kliff.dataset import Dataset
-from kliff.models import KIMModel
-from kliff.utils import download_dataset
+from kliff_torch.analyzers import EnergyForcesRMSE
+from kliff_torch.calculators import Calculator
+from kliff_torch.dataset import Dataset
+from kliff_torch.models import KIMModel
+from kliff_torch.utils import download_dataset
 
 model = KIMModel(model_name="SW_StillingerWeber_1985_Si__MO_405512056662_006")
 

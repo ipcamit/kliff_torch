@@ -18,7 +18,7 @@ import sys
 # sys.path.insert(0, os.path.abspath('.'))
 
 # this should be the path to the package, not the source
-# e.g. ~/Applications/kliff
+# e.g. ~/Applications/kliff_torch
 # NOTE, do not use sys.path.insert, especially true when you have a C extension.
 # Because if you use `pip install .` or `python setup install` to build your
 # extension and install the package, the C extension will not be placed in the
@@ -164,7 +164,7 @@ latex_documents = [
 
 # One entry per manual page. List of tuples
 # (source start file, name, description, authors, manual section).
-man_pages = [(master_doc, "kliff", "KLIFF Documentation", [author], 1)]
+man_pages = [(master_doc, "kliff_torch", "KLIFF Documentation", [author], 1)]
 
 
 # -- Options for Texinfo output ----------------------------------------------

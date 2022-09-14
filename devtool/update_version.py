@@ -39,7 +39,7 @@ if __name__ == "__main__":
     kliff_dir = Path(__file__).parents[1]
 
     # update  __init__.py
-    path = kliff_dir.joinpath("kliff", "__init__.py")
+    path = kliff_dir.joinpath("kliff_torch", "__init__.py")
     update_version(mmp, path, "__version__", True, True)
 
     # update conf.py for docs

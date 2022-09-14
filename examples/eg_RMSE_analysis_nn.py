@@ -3,13 +3,13 @@ Compute the root-mean-square error (RMSE) of model prediction and reference valu
 the dataset.
 """
 
-from kliff import nn
-from kliff.analyzers import EnergyForcesRMSE
-from kliff.calculators import CalculatorTorch
-from kliff.dataset import Dataset
-from kliff.descriptors import SymmetryFunction
-from kliff.models import NeuralNetwork
-from kliff.utils import download_dataset
+from kliff_torch import nn
+from kliff_torch.analyzers import EnergyForcesRMSE
+from kliff_torch.calculators import CalculatorTorch
+from kliff_torch.dataset import Dataset
+from kliff_torch.descriptors import SymmetryFunction
+from kliff_torch.models import NeuralNetwork
+from kliff_torch.utils import download_dataset
 
 # model
 descriptor = SymmetryFunction(

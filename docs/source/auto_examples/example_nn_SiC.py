@@ -10,13 +10,13 @@ specie (take a look at :ref:`tut_nn` for Si if you haven't yet).
 """
 
 
-from kliff import nn
-from kliff.calculators.calculator_torch import CalculatorTorchSeparateSpecies
-from kliff.dataset import Dataset
-from kliff.descriptors import SymmetryFunction
-from kliff.loss import Loss
-from kliff.models import NeuralNetwork
-from kliff.utils import download_dataset
+from kliff_torch import nn
+from kliff_torch.calculators.calculator_torch import CalculatorTorchSeparateSpecies
+from kliff_torch.dataset import Dataset
+from kliff_torch.descriptors import SymmetryFunction
+from kliff_torch.loss import Loss
+from kliff_torch.models import NeuralNetwork
+from kliff_torch.utils import download_dataset
 
 descriptor = SymmetryFunction(
     cut_name="cos",

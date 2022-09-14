@@ -4,8 +4,8 @@ from pathlib import Path
 
 import numpy as np
 import pytest
-from kliff.dataset import Configuration
-from kliff.models.lennard_jones import LennardJones, LJComputeArguments
+from kliff_torch.dataset import Configuration
+from kliff_torch.models.lennard_jones import LennardJones, LJComputeArguments
 
 
 def write_tmp_params(fname):

@@ -1,6 +1,6 @@
-from kliff.calculators.calculator import Calculator, _WrapperCalculator
-from kliff.dataset import Dataset
-from kliff.loss import Loss
+from kliff_torch.calculators.calculator import Calculator, _WrapperCalculator
+from kliff_torch.dataset import Dataset
+from kliff_torch.loss import Loss
 
 # training set
 tset = Dataset("Si_training_set")

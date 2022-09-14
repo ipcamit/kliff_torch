@@ -1,8 +1,8 @@
 from pathlib import Path
 
 import numpy as np
-from kliff.dataset import Configuration
-from kliff.descriptors import Bispectrum
+from kliff_torch.dataset import Configuration
+from kliff_torch.descriptors import Bispectrum
 
 zeta_ref = [
     [

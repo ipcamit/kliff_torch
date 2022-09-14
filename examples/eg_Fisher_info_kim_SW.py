@@ -6,11 +6,11 @@ information theory based sensitivity analysis <https://doi.org/10.1063/1.5007842
 """
 
 
-from kliff.analyzers import Fisher
-from kliff.calculators import Calculator
-from kliff.dataset import Dataset
-from kliff.models import KIMModel
-from kliff.utils import download_dataset
+from kliff_torch.analyzers import Fisher
+from kliff_torch.calculators import Calculator
+from kliff_torch.dataset import Dataset
+from kliff_torch.models import KIMModel
+from kliff_torch.utils import download_dataset
 
 ##########################################################################################
 # Select the parameters that will be used to compute the Fisher information. Only

@@ -8,13 +8,13 @@ Most of the settings are the same as ``example_nn_Si.py``. We only need to load 
 parameters of the model and the state dictionary of the parameter.
 """
 
-from kliff import nn
-from kliff.calculators import CalculatorTorch
-from kliff.dataset import Dataset
-from kliff.descriptors import SymmetryFunction
-from kliff.loss import Loss
-from kliff.models import NeuralNetwork
-from kliff.utils import download_dataset
+from kliff_torch import nn
+from kliff_torch.calculators import CalculatorTorch
+from kliff_torch.dataset import Dataset
+from kliff_torch.descriptors import SymmetryFunction
+from kliff_torch.loss import Loss
+from kliff_torch.models import NeuralNetwork
+from kliff_torch.utils import download_dataset
 
 descriptor = SymmetryFunction(
     cut_name="cos", cut_dists={"Si-Si": 5.0}, hyperparams="set51", normalize=True

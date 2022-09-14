@@ -12,10 +12,10 @@ import os
 import subprocess
 
 
-def get_all_modules(source="../kliff"):
+def get_all_modules(source="../kliff_torch"):
     """Get all modules.
-    Note, this only get the first-level modules like `kliff.module_a`, not modules
-    (in subpackages) like `kliff.subpackage_a.module_b`. subpackage is considered
+    Note, this only get the first-level modules like `kliff_torch.module_a`, not modules
+    (in subpackages) like `kliff_torch.subpackage_a.module_b`. subpackage is considered
     as a module.
 
     Take advantage of
@@ -41,20 +41,20 @@ def get_all_modules(source="../kliff"):
 def autodoc_package(path, modules):
     if path and not os.path.exists(path):
         os.makedirs(path)
-    fname = os.path.join(path, "kliff.rst")
+    fname = os.path.join(path, "kliff_torch.rst")
     with open(fname, "w") as fout:
         fout.write(".. _reference:\n\n")
         fout.write("Package Reference\n")
         fout.write("=================\n\n")
         fout.write(".. toctree::\n")
         for mod in modules:
-            fout.write("    kliff." + mod + "\n")
+            fout.write("    kliff_torch." + mod + "\n")
 
 
 def autodoc_module(path, module):
     if path and not os.path.exists(path):
         os.makedirs(path)
-    module_name = "kliff." + module
+    module_name = "kliff_torch." + module
     fname = os.path.join(path, module_name + ".rst")
     with open(fname, "w") as fout:
         fout.write("{}\n".format(module_name))

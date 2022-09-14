@@ -3,9 +3,9 @@ from typing import Dict
 
 import numpy as np
 import pytest
-from kliff.dataset import Dataset
-from kliff.models.kim import KIMComputeArguments, KIMModel
-from kliff.models.parameter import Parameter
+from kliff_torch.dataset import Dataset
+from kliff_torch.models.kim import KIMComputeArguments, KIMModel
+from kliff_torch.models.parameter import Parameter
 
 ref_energies = [-277.409737571, -275.597759276, -276.528342759, -275.482988187]
 

@@ -37,11 +37,11 @@ def get_extra_compile_args():
 
 
 sym_fn = Extension(
-    "kliff.descriptors.symmetry_function.sf",
+    "kliff_torch.descriptors.symmetry_function.sf",
     sources=[
-        "kliff/descriptors/symmetry_function/sym_fn_bind.cpp",
-        "kliff/descriptors/symmetry_function/sym_fn.cpp",
-        "kliff/descriptors/symmetry_function/helper.cpp",
+        "kliff_torch/descriptors/symmetry_function/sym_fn_bind.cpp",
+        "kliff_torch/descriptors/symmetry_function/sym_fn.cpp",
+        "kliff_torch/descriptors/symmetry_function/helper.cpp",
     ],
     include_dirs=get_includes(),
     extra_compile_args=get_extra_compile_args(),
@@ -49,11 +49,11 @@ sym_fn = Extension(
 )
 
 bispectrum = Extension(
-    "kliff.descriptors.bispectrum.bs",
+    "kliff_torch.descriptors.bispectrum.bs",
     sources=[
-        "kliff/descriptors/bispectrum/bispectrum_bind.cpp",
-        "kliff/descriptors/bispectrum/bispectrum.cpp",
-        "kliff/descriptors/bispectrum/helper.cpp",
+        "kliff_torch/descriptors/bispectrum/bispectrum_bind.cpp",
+        "kliff_torch/descriptors/bispectrum/bispectrum.cpp",
+        "kliff_torch/descriptors/bispectrum/helper.cpp",
     ],
     include_dirs=get_includes(),
     extra_compile_args=get_extra_compile_args(),
@@ -61,10 +61,10 @@ bispectrum = Extension(
 )
 
 neighlist = Extension(
-    "kliff.neighbor.nl",
+    "kliff_torch.neighbor.nl",
     sources=[
-        "kliff/neighbor/neighbor_list.cpp",
-        "kliff/neighbor/neighbor_list_bind.cpp",
+        "kliff_torch/neighbor/neighbor_list.cpp",
+        "kliff_torch/neighbor/neighbor_list_bind.cpp",
     ],
     include_dirs=get_includes(),
     extra_compile_args=get_extra_compile_args(),
@@ -73,7 +73,7 @@ neighlist = Extension(
 
 
 def get_version():
-    fname = Path(__file__).parent.joinpath("kliff", "__init__.py")
+    fname = Path(__file__).parent.joinpath("kliff_torch", "__init__.py")
     with open(fname) as f:
         for line in f:
             line = line.strip()
@@ -96,7 +96,7 @@ def get_readme():
 
 
 setup(
-    name="kliff",
+    name="kliff_torch",
     version=get_version(),
     packages=find_packages(),
     ext_modules=[sym_fn, bispectrum, neighlist],
@@ -111,11 +111,11 @@ setup(
     extras_require={
         "test": ["pytest"],
     },
-    entry_points={"console_scripts": ["kliff = kliff.cmdline.cli:main"]},
+    entry_points={"console_scripts": ["kliff_torch = kliff_torch.cmdline.cli:main"]},
     author="Mingjian Wen",
     author_email="wenxx151@gmail.com",
     url="https://github.com/openkim/kliff",
-    description="KLIFF: KIM-based Learning-Integrated Fitting Framework",
+    description="KLIFF_Torch: KIM-based Learning-Integrated Fitting Framework",
     long_description=get_readme(),
     long_description_content_type="text/markdown",
     classifiers=[

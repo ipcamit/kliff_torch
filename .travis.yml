@@ -14,7 +14,7 @@ before_install:
   - sudo apt-get install gcc
   - sudo apt-get install gfortran
 
-  # keep record of kliff directory
+  # keep record of kliff_torch directory
   - export KLIFF_DIR=$PWD
   - export KIM_API_VERSION=2.2.1
 

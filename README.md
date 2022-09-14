@@ -17,12 +17,12 @@ as the neural network (NN) models.
 
 ### Using conda
 ```sh
-conda intall -c conda-forge kliff
+conda intall -c conda-forge kliff_torch
 ```
 
 ### Using pip
 ```sh
-pip install kliff
+pip install kliff_torch
 ```
 
 ### From source
@@ -38,13 +38,13 @@ model, `PyTorch` is needed. For more information on installing these packages, s
 ## A quick example to train a neural network potential
 
 ```python
-from kliff import nn
-from kliff.calculators import CalculatorTorch
-from kliff.descriptors import SymmetryFunction
-from kliff.dataset import Dataset
-from kliff.models import NeuralNetwork
-from kliff.loss import Loss
-from kliff.utils import download_dataset
+from kliff_torch import nn
+from kliff_torch.calculators import CalculatorTorch
+from kliff_torch.descriptors import SymmetryFunction
+from kliff_torch.dataset import Dataset
+from kliff_torch.models import NeuralNetwork
+from kliff_torch.loss import Loss
+from kliff_torch.utils import download_dataset
 
 # Descriptor to featurize atomic configurations
 descriptor = SymmetryFunction(

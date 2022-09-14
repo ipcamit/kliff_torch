@@ -1,10 +1,10 @@
 from pathlib import Path
 
 import numpy as np
-from kliff.calculators import Calculator
-from kliff.dataset import Dataset
-from kliff.loss import Loss
-from kliff.models import KIMModel
+from kliff_torch.calculators import Calculator
+from kliff_torch.dataset import Dataset
+from kliff_torch.loss import Loss
+from kliff_torch.models import KIMModel
 
 
 def residual_fn(identifier, natoms, weight, prediction, reference, data):

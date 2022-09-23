@@ -37,9 +37,9 @@ def get_extra_compile_args():
     return ["-std=c++14"]
 
 torch_ext =  cpp_extension.CppExtension(
-        'kliff_torch._utils.generate_graph.tg',
+        'kliff_torch.utils.generate_graph.tg',
         sources = [
-            'kliff_torch/_utils/generate_graph/torch_graph.cpp', 
+            'kliff_torch/utils/generate_graph/torch_graph.cpp',
             'kliff_torch/neighbor/neighbor_list.cpp'
             ],
         include_dirs=get_includes(),

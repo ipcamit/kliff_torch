@@ -2,6 +2,7 @@ from distutils.sysconfig import get_config_vars
 from pathlib import Path
 
 from setuptools import Extension, find_packages, setup
+from torch.utils import cpp_extension
 
 # remove `-Wstrict-prototypes' that is for C not C++
 cfg_vars = get_config_vars()
@@ -33,8 +34,17 @@ def get_includes():
 
 
 def get_extra_compile_args():
-    return ["-std=c++11"]
+    return ["-std=c++14"]
 
+torch_ext =  cpp_extension.CppExtension(
+        'kliff_torch._utils.generate_graph.tg',
+        sources = [
+            'kliff_torch/_utils/generate_graph/torch_graph.cpp', 
+            'kliff_torch/neighbor/neighbor_list.cpp'
+            ],
+        include_dirs=get_includes(),
+        extra_compile_args=get_extra_compile_args()
+    )
 
 sym_fn = Extension(
     "kliff_torch.descriptors.symmetry_function.sf",
@@ -99,7 +109,8 @@ setup(
     name="kliff_torch",
     version=get_version(),
     packages=find_packages(),
-    ext_modules=[sym_fn, bispectrum, neighlist],
+    ext_modules=[sym_fn, bispectrum, neighlist, torch_ext],
+    cmdclass={'build_ext': cpp_extension.BuildExtension},
     install_requires=[
         "requests",
         "pybind11",

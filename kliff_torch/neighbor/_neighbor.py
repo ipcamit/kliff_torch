@@ -1,4 +1,4 @@
-from typing import Dict, List, Tuple, Union
+from typing import Dict, List, Tuple
 
 import numpy as np
 from kliff_torch.atomic_data import atomic_number, atomic_species
@@ -6,7 +6,7 @@ from kliff_torch.dataset.dataset import Configuration
 from kliff_torch.neighbor import nl  # C extension
 
 
-class NeighborListNew:
+class NeighborList:
     """
     Neighbor list class.
 
@@ -44,15 +44,11 @@ class NeighborListNew:
     """
 
     def __init__(
-        self, conf: Configuration, infl_dist: float, cutoffs: Union[np.ndarray, List] = None, padding_need_neigh: bool = False
+        self, conf: Configuration, infl_dist: float, padding_need_neigh: bool = False
     ):
         self.conf = conf
         self.infl_dist = infl_dist
         self.padding_need_neigh = padding_need_neigh
-        if cutoffs!=None:
-            self.cutoffs = np.array(cutoffs)
-        else:
-            self.cutoffs = np.array([infl_dist])
 
         # all atoms: contrib + padding
         self.coords = None
@@ -103,11 +99,11 @@ class NeighborListNew:
             need_neigh[num_cb:] = 0
 
         # create neighbor list
-        # cutoffs = np.asarray([self.infl_dist], dtype=np.double)
-        error = nl.build(self.neigh, self.coords, self.infl_dist, self.cutoffs, need_neigh)
+        cutoffs = np.asarray([self.infl_dist], dtype=np.double)
+        error = nl.build(self.neigh, self.coords, self.infl_dist, cutoffs, need_neigh)
         check_error(error, "nl.build")
 
-    def get_neigh(self, index: int, neigh_list_index:int = 0) -> Tuple[List[int], np.array, List[str]]:
+    def get_neigh(self, index: int) -> Tuple[List[int], np.array, List[str]]:
         """
         Get the indices, coordinates, and species string of a given atom.
 
@@ -121,10 +117,10 @@ class NeighborListNew:
             neigh_species: Species symbol of neighbor atoms.
         """
 
-        # cutoffs = np.asarray([self.infl_dist], dtype=np.double)
-        # neigh_list_index = 0
+        cutoffs = np.asarray([self.infl_dist], dtype=np.double)
+        neigh_list_index = 0
         num_neigh, neigh_indices, error = nl.get_neigh(
-            self.neigh, self.cutoffs, neigh_list_index, index
+            self.neigh, cutoffs, neigh_list_index, index
         )
         check_error(error, "nl.get_neigh")
 
@@ -161,14 +157,14 @@ class NeighborListNew:
         else:
             N = self.conf.get_num_atoms()
 
-        # cutoffs = np.asarray([self.infl_dist], dtype=np.double)
+        cutoffs = np.asarray([self.infl_dist], dtype=np.double)
         neigh_list_index = 0
 
         numneigh = []
         neighlist = []
         for i in range(N):
             num_neigh, neigh_indices, error = nl.get_neigh(
-                self.neigh, self.cutoffs, neigh_list_index, i
+                self.neigh, cutoffs, neigh_list_index, i
             )
             check_error(error, "nl.get_neigh")
             numneigh.append(num_neigh)

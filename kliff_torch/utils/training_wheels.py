@@ -1,5 +1,5 @@
 import torch
-from kliff_torch.descriptors_new.descriptor_module import SymmetryFunction
+# from kliff_torch.descriptors_new.descriptor_module import SymmetryFunction
 
 class TorchSymmetryFunction(torch.autograd.Function):
     @staticmethod

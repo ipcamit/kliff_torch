@@ -1,7 +1,8 @@
 import torch
-from kliff_torch.utils.generate_graph import tg
+from kliff_torch.neighbor.generate_graph import tg
 from kliff_torch.dataset import Configuration
 from torch_geometric.data import Data
+
 
 class KIMTorchGraph:
     def __init__(self, cutoff, n_layers, as_torch_geometric_data=False):

@@ -4,7 +4,6 @@ from typing import Any, Callable, Dict, List, Optional, Sequence
 
 import numpy as np
 from kliff_torch.dataset.dataset import Configuration
-from kliff_torch.dataset.dataset_autoloader import AutoloaderConfiguration
 from kliff_torch.error import report_import_error
 from kliff_torch.log import get_log_level
 from kliff_torch.models.model import ComputeArguments, Model
@@ -42,7 +41,7 @@ class KIMComputeArguments(ComputeArguments):
     def __init__(
         self,
         kim_ca,
-        config: AutoloaderConfiguration,
+        config: Configuration,
         supported_species: Dict[str, int],
         influence_distance: float,
         compute_energy: bool = True,
@@ -695,7 +694,7 @@ class KIMModel(Model):
 
     def __call__(
         self,
-        config: AutoloaderConfiguration,
+        config: Configuration,
         compute_energy: bool = True,
         compute_forces: bool = True,
         compute_stress: bool = False,

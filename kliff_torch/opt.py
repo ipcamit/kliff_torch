@@ -10,7 +10,7 @@ from loguru import logger
 from kliff_torch.error import report_import_error
 from kliff_torch.models.parameter import OptimizingParameters
 # from .loss import Loss
-from kliff_torch.dataset import DatasetAutoloader
+from kliff_torch.dataset import Dataset
 
 import torch
 from torch.nn import Parameter
@@ -130,7 +130,7 @@ class OptimizerScipy:
         self,
         model_fn: Union[List[Callable], Callable],
         parameters: Union[List[Parameter], List[OptimizingParameters]],
-        dataset: DatasetAutoloader,
+        dataset: Dataset,
         weights: Dict = {"energy": 1.0, "forces": 1.0, "stress": 1.0},
         optimizer: Optional[Callable] = None,
         optimizer_kwargs: Optional[Dict] = None,
@@ -221,7 +221,7 @@ class OptimizerTorch:
         self,
         model_fn: Union[List[Callable], Callable],
         parameters: Union[List[Parameter], List[OptimizingParameters]],
-        dataset: DatasetAutoloader,
+        dataset: Dataset,
         weights: Dict = {"energy": 1.0, "forces": 1.0, "stress": 1.0},
         optimizer: Optional[Callable] = None,
         optimizer_kwargs: Optional[Dict] = None,

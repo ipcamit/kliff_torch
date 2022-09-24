@@ -2,7 +2,7 @@ from typing import Dict, List, Tuple
 
 import numpy as np
 from kliff_torch.atomic_data import atomic_number, atomic_species
-from kliff_torch.dataset.dataset import Configuration
+from kliff_torch.dataset._dataset_older import Configuration
 from kliff_torch.neighbor import nl  # C extension
 
 

@@ -1,7 +1,7 @@
 from pathlib import Path
 
 import numpy as np
-from kliff_torch.dataset.dataset import Configuration, Dataset
+from kliff_torch.dataset._dataset_older import Configuration, Dataset
 
 
 def test_configuration(e=True, f=False, s=False, order=False):

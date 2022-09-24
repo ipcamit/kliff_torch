@@ -5,7 +5,7 @@ import numpy as np
 import torch
 from torch.nn import Parameter
 from kliff_torch.models.parameter import OptimizingParameters
-from kliff_torch.dataset import DatasetAutoloader, AutoloaderConfiguration
+from kliff_torch.dataset import Dataset, Configuration
 
 
 class Loss:
@@ -19,7 +19,7 @@ class Loss:
     def __init__(
         self,
         model_fn: Union[List[Callable], Callable],
-        dataset: DatasetAutoloader,
+        dataset: Dataset,
         properties: str = "energy",
         weights: List = None,
         loss_agg_func: Callable = None,
@@ -37,7 +37,7 @@ class Loss:
 
     def dataset_iterator(
         self,
-    ) -> Union[AutoloaderConfiguration, list[AutoloaderConfiguration]]:
+    ) -> Union[Configuration, list[Configuration]]:
         if self.iterator_list:
             unraveled_dataset = next(iter(self.dataset))
             for iter_idx in self.iterator_list:

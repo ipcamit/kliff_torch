@@ -127,7 +127,7 @@ setup(
     author_email="wenxx151@gmail.com",
     url="https://github.com/openkim/kliff",
     description=""
-                "_Torch: KIM-based Learning-Integrated Fitting Framework",
+                "KLIFF_Torch: KIM-based Learning-Integrated Fitting Framework Sprinkled with goodness of PyTorch",
     long_description=get_readme(),
     long_description_content_type="text/markdown",
     classifiers=[

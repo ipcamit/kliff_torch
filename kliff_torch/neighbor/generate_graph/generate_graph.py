@@ -32,7 +32,7 @@ class KIMTorchGraph:
             torch_geom_graph.n_layers = graph.n_layers
             torch_geom_graph.pos = graph.pos
             torch_geom_graph.images = graph.images
-            torch_geom_graph.elements = graph.elements
+            torch_geom_graph.species = graph.species
             torch_geom_graph.contributions = graph.contributions
             for i in range(graph.n_layers):
                 torch_geom_graph.__setattr__(f"edge_index{i}", graph.edge_index[i])

@@ -656,6 +656,10 @@ class Dataset(TorchDataset):
         if not dataset_id_query:
             logger.error(f"{dataset_name} is either empty or does not exist")
             raise DatasetError(f"{dataset_name} is either empty or does not exist")
+        if len(dataset_id_query) > 1:
+            raise DatasetError(f"{dataset_name} apparently links to {len(dataset_id_query)} datasets with "
+                               f"following ids {' '.join(dataset_id_query)}." 
+                               " Please remove or rename the redundant dataset.")
 
         colabfit_dataset = client.get_dataset(dataset_id_query[0])
         configuration_ids = []

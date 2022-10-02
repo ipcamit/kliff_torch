@@ -75,7 +75,7 @@ GraphData get_complete_graph(int n_graph_layers, double cutoff,
   NeighList *nl;
   nbl_initialize(&nl);
   nbl_create_paddings(n_atoms,
-		      cutoff,
+		      infl_dist,
 		      cell.data(),
 		      pbc.data(),
 		      coords.data(),

@@ -2,7 +2,6 @@ from distutils.sysconfig import get_config_vars
 from pathlib import Path
 
 from setuptools import Extension, find_packages, setup
-from torch.utils import cpp_extension
 
 # remove `-Wstrict-prototypes' that is for C not C++
 cfg_vars = get_config_vars()
@@ -36,15 +35,30 @@ def get_includes():
 def get_extra_compile_args():
     return ["-std=c++14"]
 
-torch_ext =  cpp_extension.CppExtension(
+
+graph_ext = Extension(
         'kliff_torch.neighbor.generate_graph.tg',
         sources = [
-            'kliff_torch/neighbor/generate_graph/torch_graph.cpp',
+            'kliff_torch/neighbor/generate_graph/graph.cpp',
             'kliff_torch/neighbor/neighbor_list.cpp'
             ],
         include_dirs=get_includes(),
         extra_compile_args=get_extra_compile_args()
     )
+
+libdescriptor = Extension(
+    "kliff_torch.libdescriptor.libdescriptor",
+    sources=[
+        "kliff_torch/libdescriptor/libdescriptor_python_bindings.cpp",
+    ],
+    include_dirs=get_includes(),
+    library_dirs=["/usr/local/lib"],
+    runtime_library_dirs=["/usr/local/lib"],
+    libraries=["descriptor"],
+    extra_compile_args=get_extra_compile_args(),
+    language="c++",
+)
+
 
 sym_fn = Extension(
     "kliff_torch.descriptors.symmetry_function.sf",
@@ -109,8 +123,7 @@ setup(
     name="kliff_torch",
     version=get_version(),
     packages=find_packages(),
-    ext_modules=[sym_fn, bispectrum, neighlist, torch_ext],
-    cmdclass={'build_ext': cpp_extension.BuildExtension},
+    ext_modules=[sym_fn, bispectrum, neighlist, graph_ext, libdescriptor],
     install_requires=[
         "requests",
         "pybind11",

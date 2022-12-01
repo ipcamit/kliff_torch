@@ -7,10 +7,11 @@ from torch_geometric.data import Data
 class KIMTorchGraph(Data):
     def __init__(self):
         super(KIMTorchGraph, self).__init__()
+        self.num_nodes = None # Simplify sizes and frees up pos key word, coords is cleaner
         self.energy = None
         self.forces = None
         self.n_layers = None
-        self.pos = None
+        self.coords = None
         self.images = None
         self.species = None
         self.contributions = None
@@ -50,20 +51,21 @@ class KIMTorchGraphGenerator:
             configuration.PBC
         )
 
-        graph.energy = torch.as_tensor(configuration.energy)
-        graph.forces = torch.as_tensor(configuration.forces)
+        graph.energy = configuration.energy
+        graph.forces = configuration.forces
 
         if self.as_torch_geometric_data:
             torch_geom_graph = KIMTorchGraph()
-            torch_geom_graph.energy = graph.energy
-            torch_geom_graph.forces = graph.forces
-            torch_geom_graph.n_layers = graph.n_layers
-            torch_geom_graph.pos = graph.pos
-            torch_geom_graph.images = graph.images
-            torch_geom_graph.species = graph.species
-            torch_geom_graph.contributions = graph.contributions
+            torch_geom_graph.energy = torch.as_tensor(graph.energy)
+            torch_geom_graph.forces = torch.as_tensor(graph.forces)
+            torch_geom_graph.n_layers = torch.as_tensor(graph.n_layers)
+            torch_geom_graph.coords = torch.as_tensor(graph.coords)
+            torch_geom_graph.images = torch.as_tensor(graph.images)
+            torch_geom_graph.species = torch.as_tensor(graph.species)
+            torch_geom_graph.contributions = torch.as_tensor(graph.contributions)
+            torch_geom_graph.num_nodes = torch.as_tensor(graph.n_nodes)
             for i in range(graph.n_layers):
-                torch_geom_graph.__setattr__(f"edge_index{i}", graph.edge_index[i])
+                torch_geom_graph.__setattr__(f"edge_index{i}", torch.as_tensor(graph.edge_index[i]))
             return torch_geom_graph
 
         return graph

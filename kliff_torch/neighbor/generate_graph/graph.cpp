@@ -10,6 +10,7 @@
 
 #include <pybind11/pybind11.h>
 #include <pybind11/numpy.h>
+#include <pybind11/stl.h>
 
 namespace py = pybind11;
 
@@ -17,9 +18,9 @@ struct GraphData
 {
     GraphData() {};
     int n_layers;
+    int n_nodes;
     std::vector<py::array_t<int64_t> > edge_index;
-    // TODO change pos to coords for consistency?
-    py::array_t<double> pos;
+    py::array_t<double> coords;
     double energy;
     py::array_t<double> forces;
     py::array_t<int64_t> images;
@@ -62,7 +63,7 @@ GraphData get_complete_graph(
     int n_graph_layers,
     double cutoff,
     std::vector<std::string> & element_list,
-    py::array_t<double, py::array::c_style | py::array::forcecast> & coords,
+    py::array_t<double, py::array::c_style | py::array::forcecast> & coords_in,
     py::array_t<double> & cell,
     py::array_t<int> & pbc)
 {
@@ -83,7 +84,7 @@ GraphData get_complete_graph(
                         infl_dist,
                         cell.data(),
                         pbc.data(),
-                        coords.data(),
+                        coords_in.data(),
                         species_code.data(),
                         n_pad,
                         pad_coords,
@@ -94,7 +95,7 @@ GraphData get_complete_graph(
     double * padded_coords = new double[padded_coord_size];
     int * need_neighbors = new int[n_atoms + n_pad];
 
-    auto r = coords.unchecked<2>();
+    auto r = coords_in.unchecked<2>();
     int pos_ij = 0;
     for (int i = 0; i < n_atoms; i++)
     {
@@ -187,26 +188,12 @@ GraphData get_complete_graph(
 
     for (int i = 0; i < n_graph_layers; i++)
     {
-//        auto edge_index_i = torch::from_blob(graph_edge_indices[i],
-//                                             {2, unrolled_graph[i].size()},
-//                                             int_options_64)
-//                                .clone();
-       // auto edge_index_i = py::array_t<int64_t>(
-       //                         py::buffer_info(
-       //                             graph_edge_indices[i], 
-       //                             sizeof(int64_t), 
-       //                             py::format_descriptor<int64_t>::format(),
-       //                             2, 
-       //                             {2, unrolled_graph[i].size()},
-       //                             {sizeof(int64_t) * unrolled_graph[i].size(), sizeof(int64_t)}));
         auto edge_index_i = py::array_t<int64_t>({2, static_cast<int>(unrolled_graph[i].size())}, graph_edge_indices[i]);
             //py::array_t<int64_t>({2, unrolled_graph[i].size()}, graph_edge_indices[i]);
         gs.edge_index.push_back(std::move(edge_index_i));
     }
-//    gs.pos =
-//        = torch::from_blob(padded_coords, {n_atoms + n_pad, 3}, double_options)
-//              .clone();
 
+    gs.coords = py::array_t<double>({n_atoms + n_pad, 3}, padded_coords);
     species_code.reserve(pad_species.size());
     for (auto padding_species : pad_species)
     {
@@ -215,9 +202,6 @@ GraphData get_complete_graph(
     // cast vector  to int_64
     auto species_code_64 = std::vector<int64_t>(species_code.begin(), species_code.end());
     gs.species = py::array_t<int64_t>(species_code_64.size(), species_code_64.data());
-        //torch::from_blob(
-        //             species_code.data(), {species_code.size()}, int_options)
-        //             .clone();
 
     // Full Image vector for easier post processing (torch scatter sum)
     std::vector<int64_t> pad_image_full;
@@ -227,17 +211,12 @@ GraphData get_complete_graph(
         pad_image_full.end(), pad_image.begin(), pad_image.end());
     // implicit int -> int64_t, TODO check for potential issues
     gs.images = py::array_t<int64_t>(pad_image_full.size(), pad_image_full.data());
-        //torch::from_blob(pad_image_full.data(),
-        //                         {pad_image_full.size()},
-        //                         int_options_64)
-        //            .clone();
 
     for (int i = 0; i < n_atoms; i++) { need_neighbors[i] = 0; }
     gs.contributions
         = py::array_t<int>(n_atoms + n_pad, need_neighbors);
-        //torch::from_blob(need_neighbors, {n_atoms + n_pad}, int_options)
-        //      .clone();
 
+    gs.n_nodes = n_atoms + n_pad;
     delete[] padded_coords;
     delete[] need_neighbors;
     for (int i = 0; i < n_graph_layers; i++) { delete[] graph_edge_indices[i]; }
@@ -252,8 +231,9 @@ PYBIND11_MODULE(tg, m)
     py::class_<GraphData>(m, "GraphData")
         .def(py::init<>())
         .def_readwrite("edge_index", &GraphData::edge_index)
-        .def_readwrite("pos", &GraphData::pos)
+        .def_readwrite("coords", &GraphData::coords)
         .def_readwrite("n_layers", &GraphData::n_layers)
+        .def_readwrite("n_nodes", &GraphData::n_nodes)
         .def_readwrite("energy", &GraphData::energy)
         .def_readwrite("forces", &GraphData::forces)
         .def_readwrite("images", &GraphData::images)

@@ -1,7 +1,14 @@
 import torch
-# from kliff_torch.descriptors_new.descriptor_module import SymmetryFunction
+from enum import Enum
+from kliff_torch.neighbor import KIMTorchGraphGenerator, KIMTorchGraph
+from torch_scatter import scatter
 
-class TorchSymmetryFunction(torch.autograd.Function):
+# Todo: link it with AvailableDescriptors in libdescriptor
+class DescriptorFunctions(Enum):
+    SymmetryFunctions = 1
+    Bispectrum = 2
+
+class KIMTorchDescriptorFunction(torch.autograd.Function):
     @staticmethod
     def forward(ctx, SymFunCtx, configuration, coordinates):
         """
@@ -9,7 +16,7 @@ class TorchSymmetryFunction(torch.autograd.Function):
         Args:
             ctx:
             SymFunCtx:
-            coordinates: Coordintate tensor to accumulate gradients
+            coordinates: Coordinate tensor to accumulate gradients
 
         Returns:
 
@@ -32,27 +39,56 @@ class TorchSymmetryFunction(torch.autograd.Function):
         return None, None, dE_dr
 
 
-registered_descriptor_fn = {"SymmetryFunction": TorchSymmetryFunction}
+# registered_descriptor_fn = {"SymmetryFunction": TorchSymmetryFunction}
+
+class TorchGraphFunction(torch.autograd.Function):
+    @staticmethod
+    def forward(ctx, GraphCtx:KIMTorchGraphGenerator, configuration, coordinate:torch.Tensor):
+        ctx.GraphCtx = GraphCtx
+        graph:KIMTorchGraph = GraphCtx.generate_graph(configuration)
+        outputs = [graph.species, graph.coords]
+        for i in range(graph.n_layers):
+            outputs.append(graph.__getattr__(f"edge_index{i}"))
+        outputs.append(graph.contributions)
+        ctx.graph = graph
+        return tuple(outputs)
+
+    @staticmethod
+    def backward(ctx, *grad_outputs):
+        graph = ctx.graph
+        images = graph.images
+        d_coords = grad_outputs[1]
+        d_coords = scatter(d_coords, images, 0)
+        return None, None, d_coords
 
 
 class TrainingWheels(torch.nn.Module):
-    def __init__(self, descriptor_ctx, model):
+    @classmethod
+    def init_graph(cls, model, cutoff, n_layers):
+        kgg = KIMTorchGraphGenerator(cutoff, n_layers,as_torch_geometric_data=True)
+        preprocessor = TorchGraphFunction()
+        return cls(model, preprocessor, generator_ctx=kgg)
+
+    @classmethod
+    def init_descriptor(cls, model, cutoff, descriptor_kind:DescriptorFunctions):
+        pass
+
+    def __init__(self, model, preprocessor=None, generator_ctx=None):
         super(TrainingWheels, self).__init__()
-        self.descriptor_fn = registered_descriptor_fn[type(descriptor_ctx).__name__]
+        if preprocessor:
+            self.preprocessor = preprocessor
+        else:
+            self.preprocessor = lambda x: x
+        self.generator_ctx = generator_ctx
         self.model = model
         self.parameters = model.parameters()
-        self.descriptor_ctx = descriptor_ctx
-        self.model.descriptor = type(descriptor_ctx).__name__
-
 
     def forward(self, configuration):
         # coordinate_tensor = torch.from_numpy(self.descriptor_ctx.get_padded_coordinates(configuration))
         coordinate_tensor = torch.from_numpy(configuration.coords)
         coordinate_tensor.requires_grad_(True)
-        descriptor = self.descriptor_fn.apply(self.descriptor_ctx, configuration, coordinate_tensor)
-        # descriptor = torch.from_numpy(descriptor)
-        # descriptor.requires_grad_(True)
-        energy = self.model(descriptor)
+        model_inputs = self.preprocessor.apply(self.generator_ctx, configuration, coordinate_tensor)
+        energy = self.model(*model_inputs)
         energy = energy.sum()
         forces, = torch.autograd.grad([energy], [coordinate_tensor], retain_graph=True, allow_unused=True)
         return {"energy": energy, "forces": -forces, "stress": None}

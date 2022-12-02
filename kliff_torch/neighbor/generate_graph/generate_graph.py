@@ -66,6 +66,7 @@ class KIMTorchGraphGenerator:
             torch_geom_graph.num_nodes = torch.as_tensor(graph.n_nodes)
             for i in range(graph.n_layers):
                 torch_geom_graph.__setattr__(f"edge_index{i}", torch.as_tensor(graph.edge_index[i]))
+            torch_geom_graph.coords.requires_grad_(True)
             return torch_geom_graph
 
         return graph

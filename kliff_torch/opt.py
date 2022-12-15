@@ -2,7 +2,7 @@ import os
 from typing import Any, Callable, Dict, List, Optional, Union
 
 import numpy as np
-import scipy.optimize
+# import scipy.optimize
 from loguru import logger
 
 # from kliff_torch import parallel
@@ -13,7 +13,7 @@ from kliff_torch.models.parameter import OptimizingParameters
 from kliff_torch.dataset import Dataset
 
 import torch
-from torch.nn import Parameter
+from torch.nn import Parameter, Module
 
 try:
     from mpi4py import MPI
@@ -128,7 +128,7 @@ class OptimizerScipy:
     """
     def __init__(
         self,
-        model_fn: Union[List[Callable], Callable],
+        model_fn: Callable,
         parameters: Union[List[Parameter], List[OptimizingParameters]],
         dataset: Dataset,
         weights: Dict = {"energy": 1.0, "forces": 1.0, "stress": 1.0},
@@ -214,68 +214,91 @@ class OptimizerScipy:
 
 
 class OptimizerTorch:
-    """
+    """ Optimizer for torch models. This class provides an optimized for the torch models. It is based on the torch
+    optimizers and the torch autograd. It can be used for optimizing general pytorch functions with autograd as well.
+    The parameters to be are either inferred from the model or can be provided as a list of torch.nn.Parameter objects.
+    Dataset has to be an instance of the torch.utils.data.Dataset class or kliff_torch.dataset.Dataset class.
+    Weight is expected to be a dictionary with the keys "energy", "forces", and "stress" and the values should be a
+    valid torch broadcastable array. The target property is a list of the properties to be optimized. The default is
+    energy. The loss_agg_func is a function that takes the model output and the target and returns a scalar value.
+    epochs is the number of iterations to be performed.
+    Models should either return a named tuple with  three values (energy, forces, stress) or energy if forces are to
+    be computed using autograd.
+        params:
+            model_fn: model function to be optimized. Has to be a torch.nn.Module
+            parameters: list of parameters to optimize.
+            dataset: dataset to optimize on
+            weights: weights for the different properties
+            optimizer: optimizer to use
+            optimizer_kwargs: kwargs for the optimizer
+            epochs: maximum number of iterations
+            target_property: list of properties to optimize on
 
     """
     def __init__(
         self,
-        model_fn: Union[List[Callable], Callable],
-        parameters: Union[List[Parameter], List[OptimizingParameters]],
+        model_fn: Union[Callable, Module],
         dataset: Dataset,
-        weights: Dict = {"energy": 1.0, "forces": 1.0, "stress": 1.0},
-        optimizer: Optional[Callable] = None,
+        weights: Dict = None,
+        optimizer: Optional[Callable] = "Adam",
         optimizer_kwargs: Optional[Dict] = None,
         epochs: Optional[int] = 100,
-        target_property: List =["energy"]
+        target_property: List = None,
+        parameters: Union[List[Parameter], List[OptimizingParameters]] = None
     ):
         # TODO: parallelization of the optimizer based on torch and mpi
-        self.model_fn = model_fn if not callable(model_fn) else [model_fn]
-        self.parameters = parameters
+        self.model_fn = model_fn
+        if parameters:
+            self.parameters = parameters
+        elif isinstance(model_fn, Module):
+            try:
+                self.parameters = list(model_fn.parameters()) # If model_fn torch module
+            except TypeError:
+                self.parameters = list(model_fn.get_parameters()) # if model_fn is a TrainingWheel
+        else:
+            raise ValueError("No parameters provided")
+
+        if not weights:
+            weights = {"energy": 1.0, "forces": 1.0, "stress": 1.0}
+        self.weights = weights
+
         self.epochs = epochs
         self.optimizer_kwargs = optimizer_kwargs
         self.optimizer = self._get_optimizer(optimizer)
         self.dataset = dataset
         self.weights = weights
         self.loss_agg_func = lambda x, y: torch.mean(torch.sum((x - y) ** 2))
+        if not target_property:
+            target_property = ["energy"]
         self.target_property = target_property
+        self.print_loss = False
 
     def _get_optimizer(self, optimizer_str):
-        torch_minimize_methods = [
-                                "Adadelta",
-                                "Adagrad",
-                                "Adam",
-                                "SparseAdam",
-                                "Adamax",
-                                "ASGD",
-                                "LBFGS",
-                                "RMSprop",
-                                "Rprop",
-                                "SGD",
-                            ]
+        torch_minimize_methods = [ "Adadelta", "Adagrad", "Adam", "SparseAdam", "Adamax", "ASGD", "LBFGS",
+                                   "RMSprop", "Rprop", "SGD"]
         if isinstance(optimizer_str, str):
             if optimizer_str in torch_minimize_methods:
                 return getattr(torch.optim, optimizer_str)(self.parameters)
             else:
-                logger.warning(f"Optimization method {optimizer_str} not found in scipy, switching to default Adam")
+                logger.warning(f"Optimization method {optimizer_str} not found currently supported list, "
+                               f"switching to default Adam")
                 return torch.optim.Adam(self.parameters)
         elif "torch.optim" in str(type(optimizer_str)):
-             return optimizer_str
+            return optimizer_str
         else:
             raise ValueError("No optimizer provided")
 
-    def update_parameters(self, new_parameters:  List[Union[Parameter, OptimizingParameters]]):
+    def update_parameters(self, new_parameters:  List[Parameter]):
         for new_parameter, parameter in zip(new_parameters, self.parameters):
             with torch.no_grad():
                 parameter.copy_(new_parameter)
 
-    def loss_fn(self, models, dataset, weights, properties):
-        loss = 0.0
-        # self.update_parameters(new_parameters)
+    def loss_fn(self, model, dataset, weights, properties):
+        loss = torch.tensor(0.0)
         for configuration in dataset:
-            for i, model in enumerate(models):
-                model_eval = model(configuration)
-                for property_ in properties:
-                    loss += weights[property_] * self.loss_agg_func(model_eval[property_], configuration.__getattribute__(property_))
+            model_eval = model(configuration)
+            for property_ in properties:
+                loss += weights[property_] * self.loss_agg_func(model_eval[property_], configuration.__getattribute__(property_))
         return loss
 
     def minimize(self, kwargs=None):
@@ -290,6 +313,8 @@ class OptimizerTorch:
             loss = self.loss_fn(self.model_fn, self.dataset, self.weights, self.target_property)
             loss.backward()
             self.optimizer.step()
+            if self.print_loss:
+                print(f"Epoch {epoch} loss {loss}")
         return self.parameters
 
 

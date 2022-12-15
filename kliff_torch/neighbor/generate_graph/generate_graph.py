@@ -34,7 +34,8 @@ class KIMTorchGraph(Data):
 
 
 class KIMTorchGraphGenerator:
-    def __init__(self, cutoff, n_layers, as_torch_geometric_data=False):
+    def __init__(self, elements, cutoff, n_layers, as_torch_geometric_data=False):
+        self.elements = elements
         self.cutoff = cutoff
         self.n_layers = n_layers
         self.infl_dist = n_layers * cutoff
@@ -81,3 +82,28 @@ class KIMTorchGraphGenerator:
     def collate_fn_single_conf(self, config_list):
         graph = self.generate_graph(config_list[0])
         return graph
+
+    def save_kim_model(self, path:str, model:str):
+        with open(f"{path}/kim_model.param", "w") as f:
+            n_elements = len(self.elements)
+            f.write(f"# Number of elements\n")
+            f.write(f"{n_elements}\n")
+            f.write(f"{' '.join(self.elements)}\n\n")
+
+            f.write("# Preprocessing kind\n")
+            f.write("Graph\n\n")
+
+            f.write("# Cutoff and n_conv layers\n")
+            f.write(f"{self.cutoff}\n{self.n_layers}\n\n")
+
+            f.write("# Model\n")
+            f.write(f"{model}\n\n")
+
+            f.write("# Returns Forces\n")
+            f.write("False\n")
+
+            f.write("# Number of inputs\n")
+            f.write(f"{3 + self.n_layers}\n\n")
+
+            f.write("# Any descriptors?\n")
+            f.write("None\n")

@@ -251,37 +251,3 @@ def get_set30():
                           {'zeta': 16, 'lambda': 1, 'eta': 0.16069804526622655}])])
 
 
-
-#    def backward(self, configuration, dE_dZeta):
-#        infl_dist = np.amax(self.cut_matrix)
-#        nl = self.nl_builder(configuration, infl_dist)
-#        derivatives_unrolled = np.zeros(nl.coords.shape)
-#        element_dict = {}
-#        for i, element in enumerate(Counter(nl.species)):
-#            element_dict[element] =  i
-#        species = list(map(lambda x: element_dict[x], nl.species))
-#
-#        for i in range(configuration.get_num_atoms()):
-#            neigh_list, _, _ = nl.get_neigh(i)
-#            descriptors_derivative =  ds.grad_symmetry_function_atomic(
-#                                i,
-#                                nl.coords,
-#                                np.array(species, np.intc),
-#                                np.array(neigh_list, np.intc),
-#                                self.descriptor_width,
-#                                self.data_container,
-#                                dE_dZeta[i,:])
-#            derivatives_unrolled += descriptors_derivative.reshape(-1,3)
-#
-#        derivatives = np.zeros(configuration.coords.shape)
-#        neigh_images = nl.get_image()
-#        for i, atom in enumerate(neigh_images):
-#            derivatives[atom,:] += derivatives_unrolled[i,:]
-#
-#        return derivatives
-#
-#    def get_padded_coordinates(self, configuration):
-#        infl_dist = np.amax(self.cut_matrix)
-#        nl = self.nl_builder(configuration, infl_dist)
-#        return nl.coords
-

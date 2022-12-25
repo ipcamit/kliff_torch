@@ -5,9 +5,6 @@
 #include <string>
 #include <iostream>
 #include "Descriptors.hpp"
-//#include "SymmetryFunctions.hpp"
-//#include "Bispectrum.hpp"
-
 
 namespace py = pybind11;
 using namespace Descriptor;
@@ -160,16 +157,5 @@ PYBIND11_MODULE(libdescriptor, m) {
               return d_coord_array;
           }, py::return_value_policy::take_ownership,
           "Compute gradient of descriptor for single atom configuration.");
-
-//    py::class_<SymmetryFunctions>(m, "SymmetryFunctions")
-//            .def(py::init<>())
-//            .def("add_descriptor", &SymmetryFunctions::add_descriptor)
-//            .def("compute", &SymmetryFunctions::compute)
-//            .def("set_cutoff", &SymmetryFunctions::set_cutoff)
-//            .def("get_cutoff", &SymmetryFunctions::get_cutoff)
-//            .def("get_num_descriptors", &SymmetryFunctions::get_num_descriptors)
-//            .def("set_species", &SymmetryFunctions::set_species)
-//            .def("get_species", &SymmetryFunctions::get_species);
-
 
 }

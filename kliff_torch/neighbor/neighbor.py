@@ -249,7 +249,10 @@ class NeighborList:
         return self.padding_image.copy()
 
     def __del__(self):
-        nl.clean(self.neigh)
+        try:
+            nl.clean(self.neigh)
+        except TypeError:
+            pass
 
 
 def assemble_forces(forces: np.array, n: int, padding_image: np.array) -> np.array:

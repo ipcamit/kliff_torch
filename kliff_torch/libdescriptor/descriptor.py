@@ -23,16 +23,18 @@ class Descriptor:
     @staticmethod
     def show_available_descriptors():
         print("--------------------------------------------------------------------------------------------------")
-        print("Descriptors below are currently available, select them as AvailableDescriptors.<NAME SHOWN BELOW>:")
+        print("Descriptors below are currently available, select them by `descriptor: str` attribute:")
         print("--------------------------------------------------------------------------------------------------")
-        for key in AvailableDescriptors.__dict__.keys():
+        _instance = AvailableDescriptors()
+        for key in _instance.__dict__.keys():
             print(f"{key}")
 
-    def __init__(self, cutoff: float, species: List[str], descriptor_kind: AvailableDescriptors, hyperparameters: Dict,
-                 cutoff_function: str = "cos", nl_ctx:NeighborList=None):
+    def __init__(self, cutoff: float, species: List[str], descriptor: str, hyperparameters: Dict,
+                 cutoff_function: str = "cos", nl_ctx: NeighborList=None):
         self.cutoff = cutoff
         self.species = species
-        self.descriptor_kind = descriptor_kind
+        _available_descriptors = AvailableDescriptors()
+        self.descriptor_kind = getattr(_available_descriptors, descriptor)
         self.width = -1
         self.hyperparameters = self._set_hyperparams(hyperparameters)
         self.cutoff_function = cutoff_function
@@ -57,7 +59,7 @@ class Descriptor:
             raise TypeError("Hyperparameters must be either a string or an OrderedDict")
 
     def _init_descriptor_from_kind(self):
-        if self.descriptor_kind == AvailableDescriptors.SymmetryFunctions:
+        if self.descriptor_kind == lds.AvailableDescriptors(0):
             cutoff_array = np.ones((len(self.species), len(self.species))) * self.cutoff
             symmetry_function_types = list(self.hyperparameters.keys())
             symmetry_function_sizes = []
@@ -95,7 +97,7 @@ class Descriptor:
                             params_mat[i, 2] = params[i]["eta"]
                 symmetry_function_sizes.extend([rows, cols])
                 symmetry_function_param_matrices.append(params_mat)
-                param_num_elem += rows + cols
+                param_num_elem += rows * cols
                 width += rows
 
             symmetry_function_param = np.zeros((param_num_elem,), dtype=np.double)
@@ -105,9 +107,9 @@ class Descriptor:
                     symmetry_function_param_matrices[i].reshape(1, -1)
                 k += symmetry_function_sizes[2 * i] * symmetry_function_sizes[2 * i + 1]
 
-            return lds.DescriptorKind(self.desciptor_kind, self.species, self.cutoff_function, cutoff_array,
+            return lds.DescriptorKind.init_descriptor(self.descriptor_kind, self.species, self.cutoff_function, cutoff_array,
                                       symmetry_function_types, symmetry_function_sizes, symmetry_function_param), width
-        elif self.desciptor_kind == AvailableDescriptors.Bispectrum:
+        elif self.descriptor_kind == lds.AvailableDescriptors(1):
             raise ValueError("Descriptor kind not supported yet")
         else:
             raise ValueError("Descriptor kind not supported yet")
@@ -121,7 +123,6 @@ class Descriptor:
         n_atoms = configuration.get_num_atoms()
         descriptors = np.zeros((n_atoms, self.width))
         species = np.array(self._map_species_to_int(self.nl_ctx.species),np.intc)
-    
         for i in range(n_atoms):
             neigh_list, _, _ = self.nl_ctx.get_neigh(i)
             # TODO Implement and use compute function for faster evaluation

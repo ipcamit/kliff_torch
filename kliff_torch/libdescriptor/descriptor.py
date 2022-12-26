@@ -35,6 +35,7 @@ class Descriptor:
         self.cutoff = cutoff
         self.species = species
         _available_descriptors = AvailableDescriptors()
+        self.descriptor_name = descriptor
         self.descriptor_kind = getattr(_available_descriptors, descriptor)
         self.width = -1
         self.hyperparameters = self._set_hyperparams(hyperparameters)
@@ -255,6 +256,31 @@ class Descriptor:
                 for i in stdev:
                     fout.write("{} \n".format(i))
                 fout.write("\n")
+
+    def save_kim_model(self, path:str, model:str):
+        with open(f"{path}/kim_model.param", "w") as f:
+            n_elements = len(self.species)
+            f.write(f"# Number of elements\n")
+            f.write(f"{n_elements}\n")
+            f.write(f"{' '.join(self.species)}\n\n")
+
+            f.write("# Preprocessing kind\n")
+            f.write("Descriptor\n\n")
+
+            f.write("# Cutoff distance\n")
+            f.write(f"{self.cutoff}\n\n")
+
+            f.write("# Model\n")
+            f.write(f"{model}\n\n")
+
+            f.write("# Returns Forces\n")
+            f.write("False\n")
+
+            f.write("# Number of inputs\n")
+            f.write("1\n\n")
+
+            f.write("# Any descriptors?\n")
+            f.write(f"{self.descriptor_name}\n")
 
 
 def get_set51():

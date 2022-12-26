@@ -34,8 +34,8 @@ class KIMTorchGraph(Data):
 
 
 class KIMTorchGraphGenerator:
-    def __init__(self, elements, cutoff, n_layers, as_torch_geometric_data=False):
-        self.elements = elements
+    def __init__(self, species, cutoff, n_layers, as_torch_geometric_data=False):
+        self.species = species
         self.cutoff = cutoff
         self.n_layers = n_layers
         self.infl_dist = n_layers * cutoff
@@ -85,10 +85,10 @@ class KIMTorchGraphGenerator:
 
     def save_kim_model(self, path:str, model:str):
         with open(f"{path}/kim_model.param", "w") as f:
-            n_elements = len(self.elements)
-            f.write(f"# Number of elements\n")
+            n_elements = len(self.species)
+            f.write(f"# Number of species\n")
             f.write(f"{n_elements}\n")
-            f.write(f"{' '.join(self.elements)}\n\n")
+            f.write(f"{' '.join(self.species)}\n\n")
 
             f.write("# Preprocessing kind\n")
             f.write("Graph\n\n")

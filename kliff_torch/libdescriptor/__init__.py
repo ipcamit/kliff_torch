@@ -1,1 +1,1 @@
-from .descriptor import Descriptor
+from .descriptor import Descriptor, AvailableDescriptors

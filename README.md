@@ -1,5 +1,7 @@
 # KIM-based Learning-Integrated Fitting Framework with Torch extensions (KLIFF-Torch)
 
+# This is archived. Please check <https://github.com/ipcamit/kliff> for fully functional fork.
+
 > Note: This is temporary public fork of KLIFF for development purposes only. Once mature enough, all the capabilities developed 
 > here will be incorporated in KLIFF.    
 
@@ -19,8 +21,8 @@ as the neural network (NN) models.
 
 ### From source
 ```
-git clone https://github.com/ipcamit/kliff_torch
-cd kliff_torch; pip install -e .
+git clone https://github.com/ipcamit/kliff
+cd kliff; pip install -e .
 ```
 
 
